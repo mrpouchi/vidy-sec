@@ -12,7 +12,8 @@ import { flushReports, migrateLocalLog, sendReport } from './reports.ts'
 import { isSubscribed, pushSupport, refreshSubscription, subscribe, syncSpots, unsubscribe } from './push.ts'
 import { SkeletonCard, SpotCard } from './SpotCard.tsx'
 import { SpotsSheet } from './SpotsSheet.tsx'
-import { readCache, readFeedback, readSpots, writeCache, writeFeedback, writeSpots, type Cached } from './storage.ts'
+import { hasChosenSpots, readCache, readFeedback, readSpots, writeCache, writeFeedback, writeSpots, type Cached } from './storage.ts'
+import { Welcome } from './Welcome.tsx'
 
 const REFRESH_AFTER = 15 * 60_000
 const STALE_AFTER = 3 * 3_600_000
@@ -37,6 +38,7 @@ export function App() {
   const [toast, showToast] = useToast()
   const [spots, setSpots] = useState(readSpots)
   const [sheet, setSheet] = useState(false)
+  const [welcome, setWelcome] = useState(() => !hasChosenSpots())
   const photos = usePhotos()
   const [gallery, setGallery] = useState<GalleryState | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
@@ -276,6 +278,13 @@ export function App() {
           showToast('Photo supprimée')
         }}
         toast={showToast}
+      />
+      <Welcome
+        open={welcome}
+        onDone={(ids) => {
+          changeSpots(ids)
+          setWelcome(false)
+        }}
       />
       <SpotsSheet open={sheet} selected={spots} onChange={changeSpots} onClose={() => setSheet(false)} />
 

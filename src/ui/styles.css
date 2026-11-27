@@ -1096,3 +1096,88 @@ button:focus-visible {
 .compose-when-hint.bad {
   color: var(--wet);
 }
+
+/* ─── Bienvenue (premier lancement) ───────────────────────────────────────── */
+
+.welcome {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.welcome[open] {
+  display: flex;
+  flex-direction: column;
+  animation: fade 150ms ease-out;
+}
+
+.welcome::backdrop {
+  background: var(--bg);
+}
+
+.welcome:focus {
+  outline: none;
+}
+
+.welcome-body {
+  flex: 1;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: calc(48px + env(safe-area-inset-top)) var(--gutter) 16px;
+  overflow-y: auto;
+}
+
+.welcome-icon {
+  display: block;
+  border-radius: 14px;
+  box-shadow: 0 0 0 0.5px var(--hair);
+}
+
+.welcome h1 {
+  margin-top: 20px;
+  font-size: 34px;
+  line-height: 41px;
+  font-weight: 700;
+  letter-spacing: 0.37px;
+}
+
+.welcome-sub {
+  margin: 8px 0 24px;
+  font-size: 17px;
+  line-height: 22px;
+  color: var(--text-2);
+}
+
+.welcome .group {
+  background: var(--card);
+}
+
+.welcome-foot {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 12px var(--gutter) calc(16px + env(safe-area-inset-bottom));
+}
+
+.btn-primary {
+  width: 100%;
+  min-height: 50px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.btn-primary:disabled {
+  background: var(--skeleton);
+  color: var(--text-2);
+  cursor: default;
+}

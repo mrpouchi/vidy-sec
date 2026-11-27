@@ -42,3 +42,8 @@ export function readSpots(): string[] {
   return parseSpots(read<unknown>(SPOTS_KEY)) ?? SPOTS.map((s) => s.id)
 }
 export const writeSpots = (ids: string[]) => write(SPOTS_KEY, ids)
+
+/** Vrai si l'utilisateur a déjà choisi ses spots (sinon : écran de bienvenue au lancement). */
+export function hasChosenSpots(): boolean {
+  return read<unknown>(SPOTS_KEY) !== null
+}
