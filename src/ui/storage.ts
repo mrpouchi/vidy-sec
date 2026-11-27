@@ -1,7 +1,10 @@
 import { EMPTY_FEEDBACK, type Feedback } from '../model/feedback.ts'
+import { SPOTS } from '../model/spots.ts'
+import { parseSpots } from '../notify/requests.ts'
 
 const CACHE_KEY = 'vidy:forecast:v1'
 const FEEDBACK_KEY = 'vidy:feedback:v1'
+const SPOTS_KEY = 'vidy:spots:v1'
 
 export interface Cached {
   at: number
@@ -33,3 +36,9 @@ export function readFeedback(): Feedback {
   return fb?.factors && Array.isArray(fb.log) ? { factors: { ...EMPTY_FEEDBACK.factors, ...fb.factors }, log: fb.log } : EMPTY_FEEDBACK
 }
 export const writeFeedback = (fb: Feedback) => write(FEEDBACK_KEY, fb)
+
+/** Spots affichés et notifiés ; tous par défaut. */
+export function readSpots(): string[] {
+  return parseSpots(read<unknown>(SPOTS_KEY)) ?? SPOTS.map((s) => s.id)
+}
+export const writeSpots = (ids: string[]) => write(SPOTS_KEY, ids)

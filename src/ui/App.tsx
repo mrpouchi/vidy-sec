@@ -6,9 +6,10 @@ import { zurichStamp } from '../model/time.ts'
 import { fetchForecast, parseForecast } from '../model/weather.ts'
 import { DayList } from './DayList.tsx'
 import { InstallHint } from './InstallHint.tsx'
-import { isSubscribed, pushSupport, subscribe, unsubscribe } from './push.ts'
+import { isSubscribed, pushSupport, subscribe, syncSpots, unsubscribe } from './push.ts'
 import { SkeletonCard, SpotCard } from './SpotCard.tsx'
-import { readCache, readFeedback, writeCache, writeFeedback, type Cached } from './storage.ts'
+import { SpotsSheet } from './SpotsSheet.tsx'
+import { readCache, readFeedback, readSpots, writeCache, writeFeedback, writeSpots, type Cached } from './storage.ts'
 
 const REFRESH_AFTER = 15 * 60_000
 const STALE_AFTER = 3 * 3_600_000
@@ -31,6 +32,8 @@ export function App() {
   const [feedback, setFeedback] = useState(readFeedback)
   const [minute, setMinute] = useState(0)
   const [toast, showToast] = useToast()
+  const [spots, setSpots] = useState(readSpots)
+  const [sheet, setSheet] = useState(false)
   const dataRef = useRef(data)
   dataRef.current = data
 
@@ -69,13 +72,13 @@ export function App() {
     try {
       const all = parseForecast(data.raw, SPOTS.length)
       const stamp = zurichStamp()
-      return SPOTS.map((s, k) => buildView(s, all[k]!, stamp, feedback.factors[s.id]))
+      return SPOTS.flatMap((s, k) => (spots.includes(s.id) ? [buildView(s, all[k]!, stamp, feedback.factors[s.id])] : []))
     } catch {
       return null
     }
     // `minute` fait avancer « maintenant » sans refetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, feedback, minute])
+  }, [data, feedback, minute, spots])
 
   const report = (view: SpotView, said: Said) => {
     const next = addReport(feedback, {
@@ -112,7 +115,7 @@ export function App() {
         setPushOn(false)
         showToast('Notifications désactivées')
       } else {
-        await subscribe()
+        await subscribe(spots)
         setPushOn(true)
         showToast('Notifications activées')
       }
@@ -121,6 +124,13 @@ export function App() {
     } finally {
       setPushBusy(false)
     }
+  }
+
+  const changeSpots = (ids: string[]) => {
+    setSpots(ids)
+    writeSpots(ids)
+    // Les notifications suivent le choix ; en cas d'échec, l'affichage local reste à jour.
+    void syncSpots(ids).catch(() => showToast('Notifications non mises à jour'))
   }
 
   const stale = data && Date.now() - data.at > STALE_AFTER
@@ -132,6 +142,19 @@ export function App() {
         <h1>Spot Checker</h1>
         <div class="top-meta">
           {updated && <span>Mis à jour {updated}</span>}
+          <button type="button" class="icon-btn" aria-label="Mes spots" onClick={() => setSheet(true)}>
+            <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
+              <path
+                d="M3 6h7M14 6h3M3 14h3M10 14h7"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+              <circle cx="12" cy="6" r="2" fill="none" stroke="currentColor" stroke-width="1.8" />
+              <circle cx="8" cy="14" r="2" fill="none" stroke="currentColor" stroke-width="1.8" />
+            </svg>
+          </button>
           <button type="button" class="icon-btn" aria-label="Actualiser" onClick={() => void refresh()} disabled={loading}>
             <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
               <path
@@ -153,7 +176,14 @@ export function App() {
         <p class="notice">{failed ? 'Pas de connexion · ' : ''}Données de {updated}, peut-être dépassées.</p>
       )}
 
-      {views ? (
+      {views && views.length === 0 ? (
+        <section class="card empty">
+          <p>Aucun spot affiché.</p>
+          <button type="button" class="text-btn" onClick={() => setSheet(true)}>
+            Choisir mes spots
+          </button>
+        </section>
+      ) : views ? (
         views.map((v) => <SpotCard key={v.spot.id} view={v} onReport={(said) => report(v, said)} />)
       ) : failed ? (
         <section class="card error">
@@ -163,13 +193,10 @@ export function App() {
           </button>
         </section>
       ) : (
-        <>
-          <SkeletonCard />
-          <SkeletonCard />
-        </>
+        spots.map((id) => <SkeletonCard key={id} />)
       )}
 
-      {views && <DayList views={views} />}
+      {views && views.length > 0 && <DayList views={views} />}
 
       <footer class="foot">
         <p>Estimation : vérifie toujours sur place.</p>
@@ -188,6 +215,8 @@ export function App() {
           </button>
         )}
       </footer>
+
+      <SpotsSheet open={sheet} selected={spots} onChange={changeSpots} onClose={() => setSheet(false)} />
 
       <div class={`toast${toast.on ? ' on' : ''}`} role="status" aria-live="polite">
         {toast.msg}

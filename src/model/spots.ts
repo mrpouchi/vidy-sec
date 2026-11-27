@@ -11,12 +11,14 @@ export interface Spot {
   open: number
   close: number
   lit: boolean
+  /** Une ligne pour la liste « Mes spots ». */
+  about: string
 }
 
 export const SPOTS: readonly Spot[] = [
-  { id: 'bowl', name: 'Bowl de Vidy', short: 'Bowl', lat: 46.517, lon: 6.595, open: 8, close: 22, lit: true },
+  { id: 'bowl', name: 'Bowl de Vidy', short: 'Bowl', lat: 46.517, lon: 6.595, open: 8, close: 22, lit: true, about: 'Bowl · éclairé jusqu’à 22h' },
   // Point central du trajet Ouchy (46.507, 6.627) → UNIL Dorigny (46.521, 6.578).
-  { id: 'route', name: 'Route du lac · Ouchy → UNIL', short: 'Route', lat: 46.514, lon: 6.603, open: 0, close: 24, lit: false },
+  { id: 'route', name: 'Route du lac · Ouchy → UNIL', short: 'Route', lat: 46.514, lon: 6.603, open: 0, close: 24, lit: false, about: 'Bord du lac · de jour' },
 ]
 
 /** Heure où l'on peut rider ce spot : ouvert, et de jour ou éclairé (bowl : 8h–22h, éclairé). */

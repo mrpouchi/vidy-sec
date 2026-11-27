@@ -37,8 +37,8 @@ async function post(method: 'POST' | 'DELETE', body: unknown): Promise<void> {
   if (!res.ok) throw new Error(`serveur ${res.status}`)
 }
 
-/** Demande la permission, s'abonne et enregistre l'abonnement sur le serveur. */
-export async function subscribe(): Promise<void> {
+/** Demande la permission, s'abonne et enregistre l'abonnement (et les spots choisis) sur le serveur. */
+export async function subscribe(spots: string[]): Promise<void> {
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') throw new Error('refusé')
   const reg = await navigator.serviceWorker.register(workerUrl())
@@ -46,7 +46,26 @@ export async function subscribe(): Promise<void> {
   const sub =
     (await reg.pushManager.getSubscription()) ??
     (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: fromB64u(VAPID_PUBLIC) }))
-  await post('POST', sub.toJSON())
+  await post('POST', { subscription: sub.toJSON(), spots })
+}
+
+/** Met à jour les spots notifiés si l'appareil est abonné. */
+export async function syncSpots(spots: string[]): Promise<void> {
+  if (!(await isSubscribed())) return
+  const reg = await navigator.serviceWorker.getRegistration(workerUrl())
+  const sub = await reg?.pushManager.getSubscription()
+  if (sub) await post('POST', { subscription: sub.toJSON(), spots })
+}
+
+/** Envoie une demande de nouveau spot. */
+export async function requestSpot(ask: { name: string; place: string; note: string }): Promise<void> {
+  const res = await fetch(`${PUSH_API}/request`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(ask),
+  })
+  if (res.status === 429) throw new Error('trop')
+  if (!res.ok) throw new Error(`serveur ${res.status}`)
 }
 
 export async function unsubscribe(): Promise<void> {

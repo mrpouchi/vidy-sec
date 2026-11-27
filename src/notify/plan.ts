@@ -21,8 +21,21 @@ export interface NotifyState {
 export interface NotifyPlan {
   kind: 'daily' | 'update' | 'forced' | 'none'
   title: string
-  body: string
+  /** Une ligne par spot ; chaque abonné ne reçoit que celles de ses spots (voir `bodyFor`). */
+  lines: { id: string; text: string }[]
+  /** Spots dont le créneau a vraiment changé (pour les mises à jour). */
+  moved: string[]
   next: NotifyState
+}
+
+/** Texte de la notification pour une sélection de spots ; null si aucun de ses spots n'est concerné. */
+export function bodyFor(plan: NotifyPlan, spots?: readonly string[]): string | null {
+  const mine = (id: string) => !spots || spots.includes(id)
+  // Une mise à jour ne concerne que ceux dont un des spots a changé.
+  if (plan.kind === 'update' && !plan.moved.some(mine)) return null
+  const lines = plan.lines.filter((l) => mine(l.id)).map((l) => l.text)
+  if (!lines.length) return null
+  return plan.kind === 'update' ? `Changement :\n${lines.join('\n')}` : lines.join('\n')
 }
 
 export function planNotification(all: Hour[][], stamp: string, state: NotifyState, force = false): NotifyPlan {
@@ -39,17 +52,18 @@ export function planNotification(all: Hour[][], stamp: string, state: NotifyStat
 
   const sameDay = state.date === today
   const daily = !sameDay && hour >= DAILY_HOUR
-  const moved = sameDay && SPOTS.some((s) => state.sent?.[s.id] && changed(state.sent[s.id]!, sigs[s.id]!))
+  const movedIds = sameDay ? SPOTS.filter((s) => state.sent?.[s.id] && changed(state.sent[s.id]!, sigs[s.id]!)).map((s) => s.id) : []
+  const moved = movedIds.length > 0
   const update = moved && hour >= DAILY_HOUR && hour < QUIET_FROM && (state.updates ?? 0) < MAX_UPDATES
   const kind = daily ? 'daily' : update ? 'update' : force ? 'forced' : 'none'
 
   // Le titre suit le jour décrit (tard le soir, les lignes parlent déjà de demain).
   const described = dayOf(views[0]!.hours[views[0]!.now]!.time)
-  const text = lines.map((l) => l.text).join('\n')
   return {
     kind,
     title: `Vidy · ${longDate(described)}`,
-    body: kind === 'update' ? `Changement :\n${text}` : text,
+    lines: lines.map(({ id, text }) => ({ id, text })),
+    moved: movedIds,
     next: {
       date: today,
       sent: sigs,

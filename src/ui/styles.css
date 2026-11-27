@@ -16,6 +16,9 @@
   --notice: rgba(242, 162, 12, 0.14);
   --toast-bg: rgba(28, 28, 30, 0.92);
   --toast-text: #ffffff;
+  --sheet: #f2f2f7;
+  --group: #ffffff;
+  --field: #f2f2f7;
 
   --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
   --radius: 16px;
@@ -37,6 +40,9 @@
     --accent: #3d9bff;
     --notice: rgba(245, 171, 27, 0.16);
     --toast-bg: rgba(58, 58, 60, 0.96);
+    --sheet: #1c1c1e;
+    --group: #2c2c2e;
+    --field: #1c1c1e;
   }
 }
 
@@ -54,6 +60,9 @@
   --accent: #3d9bff;
   --notice: rgba(245, 171, 27, 0.16);
   --toast-bg: rgba(58, 58, 60, 0.96);
+  --sheet: #1c1c1e;
+  --group: #2c2c2e;
+  --field: #1c1c1e;
 }
 
 /* ─── Base ────────────────────────────────────────────────────────────────── */
@@ -564,4 +573,214 @@ button:focus-visible {
   display: grid;
   place-items: center;
   color: var(--text-2);
+}
+
+/* ─── Feuille « Mes spots » ───────────────────────────────────────────────── */
+
+.sheet {
+  position: fixed;
+  inset: auto 0 0;
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100dvh - 48px);
+  margin: 0 auto;
+  padding: 8px calc(var(--gutter) + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom))
+    calc(var(--gutter) + env(safe-area-inset-left));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 0;
+  border-radius: 16px 16px 0 0;
+  background: var(--sheet);
+  color: var(--text);
+}
+
+.sheet[open] {
+  animation: sheet-in 200ms ease-out;
+}
+
+.sheet::backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  margin-right: -8px;
+}
+
+.sheet-head h2 {
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 600;
+}
+
+.sheet-head .text-btn {
+  padding: 0 8px;
+}
+
+.group {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  border-radius: 12px;
+  background: var(--group);
+  overflow: hidden;
+}
+
+.group li + li .row {
+  border-top: 0.5px solid var(--hair);
+}
+
+.group-note {
+  margin: 6px 16px 16px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+.row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.row-title {
+  font-size: 17px;
+  line-height: 22px;
+}
+
+.row-sub {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+
+.row-btn {
+  width: 100%;
+  min-height: 44px;
+  color: var(--accent);
+  text-align: left;
+}
+
+/* Interrupteur iOS */
+.switch {
+  flex: none;
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  width: 51px;
+  height: 31px;
+  margin: 0;
+  border-radius: 16px;
+  background: var(--skeleton);
+  box-shadow: inset 0 0 0 0.5px var(--hair);
+  cursor: pointer;
+  transition: background-color 200ms ease;
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  transition: transform 200ms ease;
+}
+
+.switch:checked {
+  background: var(--dry);
+  box-shadow: none;
+}
+
+.switch:checked::after {
+  transform: translateX(20px);
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Proposer un spot */
+.ask {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px 4px;
+}
+
+.ask label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+
+.ask input,
+.ask textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0.5px solid var(--hair);
+  border-radius: 10px;
+  background: var(--field);
+  color: var(--text);
+  font: 400 17px/22px var(--font); /* 17 px : évite le zoom auto d'iOS */
+  resize: none;
+}
+
+.ask input:focus,
+.ask textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.ask-error {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--wet);
+}
+
+.ask-actions {
+  display: flex;
+  justify-content: space-between;
+}
+
+.text-btn.muted {
+  color: var(--text-2);
+  font-weight: 400;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 0;
+  padding-bottom: 0;
+  min-height: 60px;
 }

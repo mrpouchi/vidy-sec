@@ -26,10 +26,11 @@ export function DayList({ views }: { views: SpotView[] }) {
   const today = dayOf(first.hours[first.now]!.time)
   const perSpot = views.map((v) => days(v))
   const rows = perSpot[0]!
+  const columns = { gridTemplateColumns: `64px repeat(${views.length}, 1fr) 80px` }
 
   return (
     <section class="card days" aria-labelledby="days-title">
-      <div class="days-row days-head">
+      <div class="days-row days-head" style={columns}>
         <h2 id="days-title" class="eyebrow">
           7 jours
         </h2>
@@ -39,7 +40,7 @@ export function DayList({ views }: { views: SpotView[] }) {
         <span class="right">Pluie</span>
       </div>
       {rows.map((d, r) => (
-        <div class="days-row" key={d.date}>
+        <div class="days-row" key={d.date} style={columns}>
           <span class="day">{dayLabel(d.date, today)}</span>
           {views.map((v, k) => (
             <Pill day={perSpot[k]![r]!} spot={v.spot.short} />

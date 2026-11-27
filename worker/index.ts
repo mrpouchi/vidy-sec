@@ -1,21 +1,25 @@
 /**
  * Worker Cloudflare « spot-checker » :
- *  - POST   /subscribe  enregistre l'abonnement Web Push envoyé par l'app (+ notification de bienvenue)
+ *  - POST   /subscribe  enregistre l'abonnement Web Push + les spots choisis (bienvenue au premier abonnement)
  *  - DELETE /subscribe  le supprime
- *  - POST   /run        envoi forcé (test), protégé par ADMIN_TOKEN
+ *  - POST   /request    demande d'un nouveau spot (notifiée aux abonnés « owner »)
+ *  - GET    /requests   liste des demandes            ┐
+ *  - POST   /run        envoi forcé (test)            ├ protégés par ADMIN_TOKEN
+ *  - POST   /owner      marque un abonnement owner    ┘
  *  - cron horaire       message du jour / mises à jour (voir src/notify/plan.ts)
  */
 import { SPOTS } from '../src/model/spots.ts'
 import { zurichStamp } from '../src/model/time.ts'
 import { fetchForecast, parseForecast } from '../src/model/weather.ts'
 import { VAPID_PUBLIC } from '../src/notify/keys.ts'
-import { planNotification, type NotifyState } from '../src/notify/plan.ts'
+import { bodyFor, planNotification, type NotifyState } from '../src/notify/plan.ts'
+import { parseSpotRequest, parseSpots, type SpotRequest } from '../src/notify/requests.ts'
 import { parseSubscription, sendPush, type PushSub, type Vapid } from '../src/notify/webpush.ts'
 
 // Types minimaux du runtime Workers (évite d'importer tout @cloudflare/workers-types).
 interface KV {
   get(key: string): Promise<string | null>
-  put(key: string, value: string): Promise<void>
+  put(key: string, value: string, opts?: { expirationTtl?: number }): Promise<void>
   delete(key: string): Promise<void>
   list(opts: { prefix: string; cursor?: string }): Promise<{
     keys: { name: string }[]
@@ -33,6 +37,12 @@ interface Ctx {
   waitUntil(p: Promise<unknown>): void
 }
 
+/** Ce qu'on stocke par appareil. `spots` absent = tous les spots. */
+interface Record {
+  sub: PushSub
+  spots?: string[]
+}
+
 const ORIGINS = new Set(['https://mrpouchi.github.io', 'http://localhost:5173', 'http://localhost:4173'])
 const SUBJECT = 'https://github.com/mrpouchi/spot-checker'
 
@@ -43,19 +53,45 @@ async function subKey(endpoint: string): Promise<string> {
   return `sub:${Array.from(hash.slice(0, 16), (b) => b.toString(16).padStart(2, '0')).join('')}`
 }
 
-async function allSubs(env: Env): Promise<{ key: string; sub: PushSub }[]> {
-  const out: { key: string; sub: PushSub }[] = []
+function parseRecord(raw: string | null): Record | null {
+  if (!raw) return null
+  const v = JSON.parse(raw) as { sub?: unknown; spots?: unknown; endpoint?: unknown }
+  // Ancien format : l'abonnement seul.
+  const sub = parseSubscription(v.endpoint ? v : v.sub)
+  return sub ? { sub, spots: parseSpots(v.spots) ?? undefined } : null
+}
+
+async function allRecords(env: Env, prefix = 'sub:'): Promise<{ key: string; rec: Record }[]> {
+  const out: { key: string; rec: Record }[] = []
   let cursor: string | undefined
   do {
-    const page = await env.SUBS.list({ prefix: 'sub:', cursor })
+    const page = await env.SUBS.list({ prefix, cursor })
     for (const { name } of page.keys) {
-      const raw = await env.SUBS.get(name)
-      const sub = raw ? parseSubscription(JSON.parse(raw)) : null
-      if (sub) out.push({ key: name, sub })
+      const rec = parseRecord(await env.SUBS.get(name))
+      if (rec) out.push({ key: name, rec })
     }
     cursor = page.list_complete ? undefined : page.cursor
   } while (cursor)
   return out
+}
+
+/** Envoie à chaque appareil son propre texte ; nettoie les abonnements morts. */
+async function broadcast(env: Env, targets: { key: string; rec: Record }[], message: (r: Record) => object | null) {
+  const results = await Promise.all(
+    targets.map(async ({ key, rec }) => {
+      const payload = message(rec)
+      if (!payload) return -1
+      const status = await sendPush(rec.sub, JSON.stringify(payload), vapid(env)).catch(() => 0)
+      if (status === 404 || status === 410) await env.SUBS.delete(key)
+      return status
+    }),
+  )
+  return {
+    sent: results.filter((s) => s >= 200 && s < 300).length,
+    skipped: results.filter((s) => s === -1).length,
+    gone: results.filter((s) => s === 404 || s === 410).length,
+    failed: results.filter((s) => s === 0 || (s >= 300 && s !== 404 && s !== 410)).length,
+  }
 }
 
 async function run(env: Env, force: boolean) {
@@ -65,28 +101,25 @@ async function run(env: Env, force: boolean) {
   const plan = planNotification(all, stamp, state, force)
   if (plan.kind === 'none') return { stamp, kind: plan.kind }
 
-  const payload = JSON.stringify({ title: plan.title, body: plan.body, url: env.SITE_URL })
-  const subs = await allSubs(env)
-  const results = await Promise.all(
-    subs.map(async ({ key, sub }) => {
-      const status = await sendPush(sub, payload, vapid(env)).catch(() => 0)
-      if (status === 404 || status === 410) await env.SUBS.delete(key) // désabonné côté appareil
-      return status
-    }),
-  )
+  const result = await broadcast(env, await allRecords(env), (rec) => {
+    const body = bodyFor(plan, rec.spots)
+    return body ? { title: plan.title, body, url: env.SITE_URL } : null
+  })
   if (plan.kind !== 'forced') await env.SUBS.put('state', JSON.stringify(plan.next))
-  return {
-    stamp,
-    kind: plan.kind,
-    title: plan.title,
-    body: plan.body,
-    sent: results.filter((s) => s >= 200 && s < 300).length,
-    gone: results.filter((s) => s === 404 || s === 410).length,
-    failed: results.filter((s) => s < 200 || (s >= 300 && s !== 404 && s !== 410)).length,
-  }
+  return { stamp, kind: plan.kind, title: plan.title, lines: plan.lines, ...result }
 }
 
-function json(body: unknown, status: number, headers: Record<string, string>): Response {
+async function owners(env: Env): Promise<{ key: string; rec: Record }[]> {
+  const keys = JSON.parse((await env.SUBS.get('owners')) ?? '[]') as string[]
+  const out: { key: string; rec: Record }[] = []
+  for (const key of keys) {
+    const rec = parseRecord(await env.SUBS.get(key))
+    if (rec) out.push({ key, rec })
+  }
+  return out
+}
+
+function json(body: unknown, status: number, headers: { [k: string]: string }): Response {
   return new Response(body === null ? null : JSON.stringify(body), {
     status,
     headers: { ...headers, ...(body === null ? {} : { 'Content-Type': 'application/json' }) },
@@ -103,23 +136,40 @@ async function readJson(req: Request): Promise<unknown> {
   }
 }
 
+const isAdmin = (req: Request, env: Env) =>
+  Boolean(env.ADMIN_TOKEN) && req.headers.get('Authorization') === `Bearer ${env.ADMIN_TOKEN}`
+
 export default {
   async fetch(req: Request, env: Env, ctx: Ctx): Promise<Response> {
     const url = new URL(req.url)
     const origin = req.headers.get('Origin') ?? ''
-    const cors: Record<string, string> = ORIGINS.has(origin)
-      ? { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Methods': 'POST, DELETE', 'Access-Control-Allow-Headers': 'Content-Type', Vary: 'Origin' }
+    const cors: { [k: string]: string } = ORIGINS.has(origin)
+      ? {
+          'Access-Control-Allow-Origin': origin,
+          'Access-Control-Allow-Methods': 'POST, DELETE',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          Vary: 'Origin',
+        }
       : {}
 
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors })
 
     if (url.pathname === '/subscribe' && req.method === 'POST') {
-      const sub = parseSubscription(await readJson(req))
+      const body = (await readJson(req)) as { subscription?: unknown; spots?: unknown; endpoint?: unknown } | null
+      // Accepte { subscription, spots } ou l'abonnement seul (anciennes versions de l'app).
+      const sub = parseSubscription(body?.endpoint ? body : body?.subscription)
       if (!sub) return json({ error: 'abonnement invalide' }, 400, cors)
-      await env.SUBS.put(await subKey(sub.endpoint), JSON.stringify(sub))
-      const welcome = { title: 'Spot Checker', body: 'Notifications activées. Prochain message demain vers 8h.', url: env.SITE_URL }
-      ctx.waitUntil(sendPush(sub, JSON.stringify(welcome), vapid(env)).catch(() => 0))
-      return json({ ok: true }, 201, cors)
+      const spots = body?.spots === undefined ? undefined : parseSpots(body.spots)
+      if (spots === null) return json({ error: 'spots invalides' }, 400, cors)
+      const key = await subKey(sub.endpoint)
+      const isNew = (await env.SUBS.get(key)) === null
+      const rec: Record = { sub, ...(spots ? { spots } : {}) }
+      await env.SUBS.put(key, JSON.stringify(rec))
+      if (isNew) {
+        const welcome = { title: 'Spot Checker', body: 'Notifications activées. Prochain message demain vers 8h.', url: env.SITE_URL }
+        ctx.waitUntil(sendPush(sub, JSON.stringify(welcome), vapid(env)).catch(() => 0))
+      }
+      return json({ ok: true }, isNew ? 201 : 200, cors)
     }
 
     if (url.pathname === '/subscribe' && req.method === 'DELETE') {
@@ -129,10 +179,47 @@ export default {
       return json(null, 204, cors)
     }
 
+    if (url.pathname === '/request' && req.method === 'POST') {
+      const ask = parseSpotRequest(await readJson(req))
+      if (!ask) return json({ error: 'demande invalide' }, 400, cors)
+      // Anti-spam simple : une demande par minute et par adresse IP.
+      const ip = req.headers.get('CF-Connecting-IP') ?? 'inconnue'
+      if (await env.SUBS.get(`rl:${ip}`)) return json({ error: 'trop de demandes' }, 429, cors)
+      await env.SUBS.put(`rl:${ip}`, '1', { expirationTtl: 60 })
+      const stored: SpotRequest & { at: string } = { ...ask, at: zurichStamp() }
+      await env.SUBS.put(`req:${Date.now()}:${crypto.randomUUID().slice(0, 8)}`, JSON.stringify(stored))
+      ctx.waitUntil(
+        owners(env).then((list) =>
+          broadcast(env, list, () => ({
+            title: 'Nouveau spot proposé',
+            body: [ask.name, ask.place, ask.note].filter(Boolean).join(' · '),
+            url: env.SITE_URL,
+          })),
+        ),
+      )
+      return json({ ok: true }, 201, cors)
+    }
+
+    if (url.pathname === '/requests' && req.method === 'GET') {
+      if (!isAdmin(req, env)) return json({ error: 'non autorisé' }, 401, {})
+      const list = await env.SUBS.list({ prefix: 'req:' })
+      const items = await Promise.all(list.keys.map(async ({ name }) => JSON.parse((await env.SUBS.get(name)) ?? 'null')))
+      return json(items, 200, {})
+    }
+
+    if (url.pathname === '/owner' && req.method === 'POST') {
+      if (!isAdmin(req, env)) return json({ error: 'non autorisé' }, 401, {})
+      const body = (await readJson(req)) as { endpoint?: unknown } | null
+      if (typeof body?.endpoint !== 'string') return json({ error: 'endpoint manquant' }, 400, {})
+      const key = await subKey(body.endpoint)
+      const keys = new Set(JSON.parse((await env.SUBS.get('owners')) ?? '[]') as string[])
+      keys.add(key)
+      await env.SUBS.put('owners', JSON.stringify([...keys]))
+      return json({ owners: keys.size }, 200, {})
+    }
+
     if (url.pathname === '/run' && req.method === 'POST') {
-      if (!env.ADMIN_TOKEN || req.headers.get('Authorization') !== `Bearer ${env.ADMIN_TOKEN}`) {
-        return json({ error: 'non autorisé' }, 401, {})
-      }
+      if (!isAdmin(req, env)) return json({ error: 'non autorisé' }, 401, {})
       return json(await run(env, true), 200, {})
     }
 
