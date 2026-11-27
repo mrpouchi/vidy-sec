@@ -12,7 +12,7 @@ import { flushReports, migrateLocalLog, sendReport } from './reports.ts'
 import { isSubscribed, pushSupport, refreshSubscription, subscribe, syncSpots, unsubscribe } from './push.ts'
 import { SkeletonCard, SpotCard } from './SpotCard.tsx'
 import { SpotsSheet } from './SpotsSheet.tsx'
-import { hasChosenSpots, readCache, readFeedback, readSpots, writeCache, writeFeedback, writeSpots, type Cached } from './storage.ts'
+import { carrySpotsToInstall, hasChosenSpots, readCache, readFeedback, readSpots, writeCache, writeFeedback, writeSpots, type Cached } from './storage.ts'
 import { Welcome } from './Welcome.tsx'
 
 const REFRESH_AFTER = 15 * 60_000
@@ -39,6 +39,10 @@ export function App() {
   const [spots, setSpots] = useState(readSpots)
   const [sheet, setSheet] = useState(false)
   const [welcome, setWelcome] = useState(() => !hasChosenSpots())
+  const inBrowser = !matchMedia('(display-mode: standalone)').matches && !(navigator as Navigator & { standalone?: boolean }).standalone
+  useEffect(() => {
+    if (inBrowser && hasChosenSpots()) carrySpotsToInstall(readSpots())
+  }, [])
   const photos = usePhotos()
   const [gallery, setGallery] = useState<GalleryState | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
@@ -134,6 +138,7 @@ export function App() {
   const changeSpots = (ids: string[]) => {
     setSpots(ids)
     writeSpots(ids)
+    if (inBrowser) carrySpotsToInstall(ids) // l'app installée ensuite reprendra ce choix
     // Les notifications suivent le choix ; en cas d'échec, l'affichage local reste à jour.
     void syncSpots(ids).catch(() => showToast('Notifications non mises à jour'))
   }

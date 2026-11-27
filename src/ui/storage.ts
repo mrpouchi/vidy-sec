@@ -47,3 +47,48 @@ export const writeSpots = (ids: string[]) => write(SPOTS_KEY, ids)
 export function hasChosenSpots(): boolean {
   return read<unknown>(SPOTS_KEY) !== null
 }
+
+/**
+ * Sur iPhone, Safari et l'app de l'écran d'accueil ont des mémoires séparées : le choix fait dans
+ * Safari voyage dans l'adresse (?spots=…) que l'iPhone enregistre à l'installation.
+ * Au lancement, on l'adopte si rien n'est encore choisi.
+ */
+export function adoptSpotsFromUrl(): void {
+  try {
+    const raw = new URLSearchParams(location.search).get('spots')
+    if (!raw) return
+    const ids = parseSpots(raw.split(',').filter(Boolean))
+    if (ids && ids.length && !hasChosenSpots()) writeSpots(ids)
+  } catch {
+    /* adresse illisible : l'écran de bienvenue s'affichera */
+  }
+}
+
+/** Reporte le choix dans l'adresse et dans le manifeste, pour l'app que l'on va installer. */
+export function carrySpotsToInstall(ids: string[]): void {
+  try {
+    const url = new URL(location.href)
+    url.searchParams.set('spots', ids.join(','))
+    history.replaceState(null, '', url)
+    const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')
+    if (!link) return
+    const base = new URL(import.meta.env.BASE_URL, location.origin).href
+    const manifest = {
+      name: 'Spot Checker',
+      short_name: 'Spot Checker',
+      lang: 'fr',
+      start_url: url.href,
+      scope: base,
+      display: 'standalone',
+      background_color: '#F2F2F7',
+      theme_color: '#F2F2F7',
+      icons: [
+        { src: `${base}icon-192.png`, sizes: '192x192', type: 'image/png' },
+        { src: `${base}icon-512.png`, sizes: '512x512', type: 'image/png' },
+      ],
+    }
+    link.href = `data:application/manifest+json,${encodeURIComponent(JSON.stringify(manifest))}`
+  } catch {
+    /* au pire, l'app installée redemandera les spots */
+  }
+}
