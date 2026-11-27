@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Hour } from './drying.ts'
 import { simulate } from './drying.ts'
 import { SPOTS } from './spots.ts'
-import { buildView, changed, todayLine, verdict } from './summary.ts'
+import { bestWindow, buildView, changed, todayLine, verdict } from './summary.ts'
 import { addDays } from './time.ts'
 
 // ─── Météo synthétique ───────────────────────────────────────────────────────
@@ -148,6 +148,15 @@ describe('verdicts', () => {
     const morning = todayLine(buildView(route, w, `${day(D)}T08:30`), from).sig
     const afternoon = todayLine(buildView(route, w, `${day(D)}T15:30`), from).sig
     expect(changed(morning, afternoon)).toBe(false)
+  })
+
+  it('le bowl éclairé se ride jusqu’à 22h, la route seulement de jour', () => {
+    const w = weather(NOVEMBER)
+    const stamp = `${day(D)}T08:30`
+    expect(bestWindow(buildView(bowl, w, stamp), day(D))).toMatchObject({ start: at(D, 8), end: at(D, 22) })
+    expect(bestWindow(buildView(route, w, stamp), day(D))?.end).toBe(at(D, 17))
+    // Après le coucher du soleil, le bowl a encore un créneau ce soir.
+    expect(todayLine(buildView(bowl, w, `${day(D)}T18:30`)).text).toMatch(/^Bowl 🟢 sec/)
   })
 
   it('détecte un changement de créneau significatif', () => {

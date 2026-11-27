@@ -1,5 +1,6 @@
 import { useRef, useState } from 'preact/hooks'
 import { CAL } from '../model/calibration.ts'
+import { usable } from '../model/spots.ts'
 import { formatMm, statusWord, type SpotView } from '../model/summary.ts'
 import { capitalize, dayOf, hourOf, weekday, when } from '../model/time.ts'
 
@@ -8,7 +9,7 @@ const RAIN_FULL = 3 // mm/h pour une barre de pluie pleine hauteur
 
 /** Ruban des 48 prochaines heures. Glisser le doigt dessus affiche le détail. */
 export function HourStrip({ view }: { view: SpotView }) {
-  const { states, hours, now } = view
+  const { states, hours, now, spot } = view
   const end = Math.min(states.length, now + SPAN)
   const s = states.slice(now, end)
   const h = hours.slice(now, end)
@@ -70,7 +71,7 @@ export function HourStrip({ view }: { view: SpotView }) {
         </div>
         <div class="strip-bars" style={{ gridTemplateColumns: `repeat(${n}, 1fr)` }}>
           {s.map((x, i) => (
-            <i class={`l-${x.level}${h[i]!.isDay ? '' : ' night'}${x.risk ? ' risk' : ''}`} />
+            <i class={`l-${x.level}${usable(spot, h[i]!) ? '' : ' night'}${x.risk ? ' risk' : ''}`} />
           ))}
         </div>
         {sel !== null && <span class="strip-cursor" style={{ left: `${((sel + 0.5) / n) * 100}%` }} />}

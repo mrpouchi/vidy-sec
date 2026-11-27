@@ -1,7 +1,7 @@
 import { CAL } from './calibration.ts'
 import type { Hour, Level, Nuance, SpotHour } from './drying.ts'
 import { simulate } from './drying.ts'
-import type { Spot } from './spots.ts'
+import { usable, type Spot } from './spots.ts'
 import { addDays, capitalize, dayDiff, dayOf, hourOf, nowIndex, weekday, when } from './time.ts'
 
 export interface SpotView {
@@ -60,8 +60,8 @@ export function verdict(v: SpotView): string {
   const startOf = (i: number) => at(Math.max(now, i - 1))
   // Quand ça devient bon : une heure de jour, ou « d'ici demain matin » si ça arrive la nuit.
   const arrival = (i: number, prep: 'vers' | 'dès') => {
-    if (v.hours[i]!.isDay) return `${prep} ${at(i)}`
-    const k = v.hours.findIndex((h, x) => x >= i && h.isDay)
+    if (usable(v.spot, v.hours[i]!)) return `${prep} ${at(i)}`
+    const k = v.hours.findIndex((h, x) => x >= i && usable(v.spot, h))
     if (k === -1) return `${prep} ${at(i)}`
     const morning = v.hours[k]!.time
     const d = dayDiff(ref, morning)
@@ -172,10 +172,10 @@ export interface DaySummary {
   risk: boolean
 }
 
-/** Plus long créneau rideable de jour, à partir de `from`. */
+/** Plus long créneau rideable (de jour, ou éclairé), à partir de `from`. */
 export function bestWindow(v: SpotView, date: string, from = 0): Window | null {
   const idx: number[] = []
-  v.hours.forEach((h, i) => { if (i >= from && dayOf(h.time) === date && h.isDay) idx.push(i) })
+  v.hours.forEach((h, i) => { if (i >= from && dayOf(h.time) === date && usable(v.spot, h)) idx.push(i) })
   let best: number[] = []
   let run: number[] = []
   for (const i of idx) {
@@ -207,7 +207,7 @@ export function days(v: SpotView, count = 7): DaySummary[] {
       window: bestWindow(v, date, d === 0 ? v.now : 0),
       rain: hs.reduce((a, { h }) => a + h.precip, 0),
       tmax: hs.reduce((a, { h }) => Math.max(a, h.temp), -Infinity),
-      risk: hs.some(({ i }) => v.states[i]!.risk && v.hours[i]!.isDay),
+      risk: hs.some(({ i }) => v.states[i]!.risk && usable(v.spot, v.hours[i]!)),
     }
   }).filter((d) => Number.isFinite(d.tmax))
 }
