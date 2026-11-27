@@ -613,6 +613,11 @@ button:focus-visible {
   animation: sheet-in 200ms ease-out;
 }
 
+.sheet:focus,
+.viewer:focus {
+  outline: none;
+}
+
 .sheet::backdrop {
   background: rgba(0, 0, 0, 0.35);
 }

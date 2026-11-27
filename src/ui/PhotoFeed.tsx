@@ -1,21 +1,10 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { SPOTS } from '../model/spots.ts'
 import { CAPTION_MAX, PHOTO_TTL_DAYS, ago, type Photo } from '../notify/photos.ts'
+import { closeOnBackdrop, useModal } from './modal.ts'
 import { compress, fetchFeed, photoUrl, remove, report, upload } from './photos.ts'
 
 const spotName = (id: string) => SPOTS.find((s) => s.id === id)?.short ?? id
-
-/** <dialog> modale pilotée par `open`. */
-function useModal(open: boolean) {
-  const ref = useRef<HTMLDialogElement>(null)
-  useEffect(() => {
-    const d = ref.current
-    if (!d) return
-    if (open && !d.open) d.showModal()
-    if (!open && d.open) d.close()
-  }, [open])
-  return ref
-}
 
 interface Props {
   spots: string[] // spots affichés : le feed ne montre que ceux-là
@@ -161,7 +150,7 @@ function Compose(props: {
   }
 
   return (
-    <dialog ref={dialog} class="sheet" aria-labelledby="compose-title" onClose={onClose} onClick={(e) => e.target === dialog.current && onClose()}>
+    <dialog ref={dialog} class="sheet" tabIndex={-1} aria-labelledby="compose-title" onClose={onClose} onClick={(e) => closeOnBackdrop(e, onClose)}>
       <form onSubmit={(e) => void publish(e)}>
         <div class="sheet-head">
           <button type="button" class="text-btn muted" onClick={onClose}>
@@ -221,7 +210,7 @@ function Viewer(props: {
 
   const p = state?.photo
   return (
-    <dialog ref={dialog} class="viewer" aria-label="Photo" onClose={onClose} onClick={(e) => e.target === dialog.current && onClose()}>
+    <dialog ref={dialog} class="viewer" tabIndex={-1} aria-label="Photo" onClose={onClose} onClick={(e) => e.target === dialog.current && onClose()}>
       {p && (
         <>
           <img class="viewer-img" src={photoUrl(p.id)} alt={p.caption || `Photo ${spotName(p.spot)}`} />

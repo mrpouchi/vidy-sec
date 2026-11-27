@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import { SPOTS } from '../model/spots.ts'
 import { REQUEST_LIMITS } from '../notify/requests.ts'
+import { closeOnBackdrop, useModal } from './modal.ts'
 import { requestSpot } from './push.ts'
 
 interface Props {
@@ -14,17 +15,10 @@ type AskState = 'closed' | 'form' | 'sending' | 'sent'
 
 /** Feuille « Mes spots » : afficher / masquer chaque spot, et proposer un nouveau spot. */
 export function SpotsSheet({ open, selected, onChange, onClose }: Props) {
-  const dialog = useRef<HTMLDialogElement>(null)
+  const dialog = useModal(open)
   const [ask, setAsk] = useState<AskState>('closed')
   const [error, setError] = useState('')
   const [form, setForm] = useState({ name: '', place: '', note: '' })
-
-  useEffect(() => {
-    const d = dialog.current
-    if (!d) return
-    if (open && !d.open) d.showModal()
-    if (!open && d.open) d.close()
-  }, [open])
 
   // À la fermeture, on repart d'un formulaire propre (sauf texte en cours de saisie).
   useEffect(() => {
@@ -59,9 +53,10 @@ export function SpotsSheet({ open, selected, onChange, onClose }: Props) {
     <dialog
       ref={dialog}
       class="sheet"
+      tabIndex={-1}
       aria-labelledby="sheet-title"
       onClose={onClose}
-      onClick={(e) => e.target === dialog.current && onClose()} // tap sur le fond
+      onClick={(e) => closeOnBackdrop(e, onClose)}
     >
       <div class="sheet-head">
         <h2 id="sheet-title">Mes spots</h2>
