@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Hour } from './drying.ts'
 import { simulate } from './drying.ts'
-import { SPOTS } from './spots.ts'
+import { RETIRED_SPOTS, SPOTS } from './spots.ts'
 import { bestWindow, buildView, changed, todayLine, verdict } from './summary.ts'
 import { addDays } from './time.ts'
 
@@ -127,7 +127,7 @@ describe('calibrage', () => {
 
 describe('verdicts', () => {
   const bowl = SPOTS[0]!
-  const route = SPOTS[1]!
+  const route = RETIRED_SPOTS.find((s) => s.id === 'route')! // modèle « enrobé », de jour
 
   it('annonce quand le bowl redevient rideable', () => {
     const w = weather(NOVEMBER, rainOn([D - 1], 14, 18, 1.6))

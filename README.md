@@ -1,6 +1,7 @@
 # Spot Checker
 
-Est-ce que le **bowl de Vidy** et la **route du lac Ouchy → UNIL** sont secs ? Et sinon, quand ?
+Est-ce que le **bowl de Vidy** et le **pumptrack de Leysin** sont secs ? Et sinon, quand ?
+(La route du lac Ouchy → UNIL est retirée pour l'instant : `RETIRED_SPOTS` dans `src/model/spots.ts`.)
 
 Une app web pensée pour l'iPhone (à ajouter à l'écran d'accueil), avec une notification chaque
 matin vers 8h, et une mise à jour seulement si la prévision change dans la journée.
@@ -14,7 +15,7 @@ Ce n'est pas une mesure, c'est une simulation heure par heure de l'eau en surfac
 - **Apports** : pluie, fonte de neige, rosée (nuit claire et calme).
 - **Séchage** : évaporation de Penman pour une surface mouillée (soleil, vent, air sec, chaleur).
 - **Bowl** : deux réservoirs. Les parois sèchent vite ; le fond garde des flaques qui sèchent lentement.
-- **Route** : un film d'eau mince sur le bitume, qui sèche vite.
+- **Enrobé** (pumptrack, route) : un film d'eau mince sur le bitume, qui sèche vite.
 
 Les constantes sont toutes dans [`src/model/calibration.ts`](src/model/calibration.ts), commentées.
 Les scénarios de calibrage (dont le repère terrain « pas de pluie la veille ni le jour même →

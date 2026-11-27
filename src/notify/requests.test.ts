@@ -30,10 +30,12 @@ describe('notifications par spot', () => {
 
 describe('validation', () => {
   it('choix de spots', () => {
-    expect(parseSpots(['route', 'bowl', 'bowl'])).toEqual(['route', 'bowl'])
+    expect(parseSpots(['leysin', 'bowl', 'bowl'])).toEqual(['leysin', 'bowl'])
     expect(parseSpots([])).toEqual([])
-    expect(parseSpots(['plage'])).toBeNull()
+    expect(parseSpots(['route', 'bowl'])).toEqual(['bowl']) // spot retiré : ignoré, le reste du choix est gardé
+    expect(parseSpots(['plage'])).toEqual([])
     expect(parseSpots('bowl')).toBeNull()
+    expect(parseSpots([3])).toBeNull()
   })
 
   it('demande de spot', () => {

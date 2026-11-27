@@ -22,8 +22,6 @@ export interface Spot {
 
 export const SPOTS: readonly Spot[] = [
   { id: 'bowl', kind: 'bowl', name: 'Bowl de Vidy', short: 'Bowl', lat: 46.517, lon: 6.595, open: 8, close: 20, lit: true, about: 'Bowl · éclairé jusqu’à 20h', at: 'au bowl de Vidy' },
-  // Point central du trajet Ouchy (46.507, 6.627) → UNIL Dorigny (46.521, 6.578).
-  { id: 'route', kind: 'route', name: 'Route du lac · Ouchy → UNIL', short: 'Route', lat: 46.514, lon: 6.603, open: 0, close: 24, lit: false, about: 'Bord du lac · de jour', at: 'sur la route du lac' },
   // Derrière la patinoire, ~1260 m (OpenStreetMap : leisure=track, cycling=pump_track, surface=asphalt).
   // Enrobé qui draine bien : même modèle que le bitume. Neige en hiver (simulée) ; pas d'éclairage connu.
   {
@@ -46,3 +44,12 @@ export function usable(spot: Spot, h: { time: string; isDay: boolean }): boolean
   const hour = Number(h.time.slice(11, 13))
   return hour >= spot.open && hour <= spot.close && (h.isDay || spot.lit)
 }
+
+/**
+ * Spots retirés pour l'instant (réglages gardés pour les remettre facilement :
+ * il suffit de les replacer dans SPOTS). Les choix enregistrés qui les contiennent les ignorent.
+ */
+export const RETIRED_SPOTS: readonly Spot[] = [
+  // Route du lac, retirée le 2026-11-28. Point central du trajet Ouchy (46.507, 6.627) → UNIL Dorigny (46.521, 6.578).
+  { id: 'route', kind: 'route', name: 'Route du lac · Ouchy → UNIL', short: 'Route', lat: 46.514, lon: 6.603, open: 0, close: 24, lit: false, about: 'Bord du lac · de jour', at: 'sur la route du lac' },
+]

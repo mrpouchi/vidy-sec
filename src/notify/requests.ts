@@ -9,12 +9,11 @@ export interface SpotRequest {
 
 export const REQUEST_LIMITS = { name: 80, place: 300, note: 500 } as const
 
-/** Liste d'identifiants de spots connus, sans doublon ; null si invalide. */
+/** Identifiants de spots connus, sans doublon (un spot retiré est simplement ignoré) ; null si ce n'est pas une liste. */
 export function parseSpots(value: unknown): string[] | null {
-  if (!Array.isArray(value)) return null
+  if (!Array.isArray(value) || !value.every((id) => typeof id === 'string')) return null
   const known = new Set(SPOTS.map((s) => s.id))
-  const ids = [...new Set(value)]
-  return ids.every((id): id is string => typeof id === 'string' && known.has(id as never)) ? (ids as string[]) : null
+  return [...new Set(value as string[])].filter((id) => known.has(id))
 }
 
 const clean = (v: unknown, max: number) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '')

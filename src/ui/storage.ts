@@ -43,9 +43,12 @@ export function readSpots(): string[] {
 }
 export const writeSpots = (ids: string[]) => write(SPOTS_KEY, ids)
 
-/** Vrai si l'utilisateur a déjà choisi ses spots (sinon : écran de bienvenue au lancement). */
+/**
+ * Vrai si l'utilisateur a un choix de spots encore valable (sinon : écran de bienvenue au lancement).
+ * Un choix devenu vide (seulement des spots retirés, ou tout décoché) redemande.
+ */
 export function hasChosenSpots(): boolean {
-  return read<unknown>(SPOTS_KEY) !== null
+  return (parseSpots(read<unknown>(SPOTS_KEY)) ?? []).length > 0
 }
 
 /**

@@ -1,7 +1,7 @@
 {
   "name": "Spot Checker",
   "short_name": "Spot Checker",
-  "description": "Quand est-ce que le bowl de Vidy et la route du lac sont secs ?",
+  "description": "Ton spot de skate est-il sec ? Et sinon, quand ?",
   "lang": "fr",
   "start_url": ".",
   "scope": ".",
