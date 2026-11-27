@@ -3,6 +3,7 @@
  *  - POST   /subscribe  enregistre l'abonnement Web Push + les spots choisis (bienvenue au premier abonnement)
  *  - DELETE /subscribe  le supprime
  *  - POST   /request    demande d'un nouveau spot (notifiée aux abonnés « owner »)
+ *  - /photos…           feed de photos des spots (voir worker/photos.ts)
  *  - GET    /requests   liste des demandes            ┐
  *  - POST   /run        envoi forcé (test)            ├ protégés par ADMIN_TOKEN
  *  - POST   /owner      marque un abonnement owner    ┘
@@ -15,11 +16,13 @@ import { VAPID_PUBLIC } from '../src/notify/keys.ts'
 import { bodyFor, planNotification, type NotifyState } from '../src/notify/plan.ts'
 import { parseSpotRequest, parseSpots, type SpotRequest } from '../src/notify/requests.ts'
 import { parseSubscription, sendPush, type PushSub, type Vapid } from '../src/notify/webpush.ts'
+import { handlePhotos } from './photos.ts'
 
 // Types minimaux du runtime Workers (évite d'importer tout @cloudflare/workers-types).
 interface KV {
   get(key: string): Promise<string | null>
-  put(key: string, value: string, opts?: { expirationTtl?: number }): Promise<void>
+  get(key: string, type: 'arrayBuffer'): Promise<ArrayBuffer | null>
+  put(key: string, value: string | ArrayBuffer, opts?: { expirationTtl?: number }): Promise<void>
   delete(key: string): Promise<void>
   list(opts: { prefix: string; cursor?: string }): Promise<{
     keys: { name: string }[]
@@ -146,7 +149,7 @@ export default {
     const cors: { [k: string]: string } = ORIGINS.has(origin)
       ? {
           'Access-Control-Allow-Origin': origin,
-          'Access-Control-Allow-Methods': 'POST, DELETE',
+          'Access-Control-Allow-Methods': 'GET, POST, DELETE',
           'Access-Control-Allow-Headers': 'Content-Type',
           Vary: 'Origin',
         }
@@ -222,6 +225,17 @@ export default {
       if (!isAdmin(req, env)) return json({ error: 'non autorisé' }, 401, {})
       return json(await run(env, true), 200, {})
     }
+
+    const photos = await handlePhotos(req, url, {
+      kv: env.SUBS,
+      reply: (body, status, extra = {}) => json(body, status, { ...cors, ...extra }),
+      isAdmin: isAdmin(req, env),
+      ip: req.headers.get('CF-Connecting-IP') ?? 'inconnue',
+      notifyOwner: async (title, body, link) => broadcast(env, await owners(env), () => ({ title, body, url: link })),
+      siteUrl: env.SITE_URL,
+      waitUntil: (p) => ctx.waitUntil(p),
+    })
+    if (photos) return photos
 
     if (url.pathname === '/') return new Response('Spot Checker · notifications', { headers: cors })
     return json({ error: 'introuvable' }, 404, cors)

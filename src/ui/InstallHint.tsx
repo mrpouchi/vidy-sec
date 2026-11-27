@@ -48,6 +48,7 @@ export function InstallHint() {
     isStandalone() || wasDismissed() ? null : isIOS() ? 'ios' : null,
   )
   const [prompt, setPrompt] = useState<InstallPromptEvent | null>(null)
+  const [demo, setDemo] = useState(false)
 
   useEffect(() => {
     if (isStandalone() || wasDismissed()) return
@@ -91,9 +92,16 @@ export function InstallHint() {
       <div class="install-text">
         <p class="install-title">Installe Spot Checker</p>
         {mode === 'ios' ? (
-          <p class="install-steps">
-            Touche <ShareIcon /> puis « Sur l’écran d’accueil » pour recevoir les notifications.
-          </p>
+          <>
+            <p class="install-steps">
+              Menu <ShareIcon /> Partager, puis « Sur l’écran d’accueil » pour recevoir les notifications.
+            </p>
+            {!demo && (
+              <button type="button" class="text-btn install-btn" onClick={() => setDemo(true)}>
+                Voir comment (12 s)
+              </button>
+            )}
+          </>
         ) : (
           <p class="install-steps">Pour l’ouvrir en un geste et recevoir les notifications.</p>
         )}
@@ -103,6 +111,20 @@ export function InstallHint() {
           </button>
         )}
       </div>
+      {demo && (
+        <video
+          class="install-video"
+          src={`${import.meta.env.BASE_URL}install.mp4`}
+          poster={`${import.meta.env.BASE_URL}install-poster.jpg`}
+          width="390"
+          height="844"
+          autoplay
+          muted
+          loop
+          playsInline
+          aria-label="Vidéo : ajouter Spot Checker à l’écran d’accueil depuis Safari"
+        />
+      )}
       <button type="button" class="install-close" aria-label="Fermer" onClick={dismiss}>
         <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
           <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />

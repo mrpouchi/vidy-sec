@@ -48,3 +48,12 @@ npm run worker:deploy                      # déployer le Worker
 npx wrangler secret put VAPID_PRIVATE      # clé privée VAPID (une fois)
 npx wrangler secret put ADMIN_TOKEN        # pour POST /run (envoi forcé de test)
 ```
+
+## Photos des spots
+
+Chacun peut publier une photo d'un spot (bouton « Ajouter » de la carte Photos). L'app la
+redimensionne et la réencode avant l'envoi (≤ 1280 px, JPEG, sans métadonnées ni GPS). Les photos
+sont publiques, stockées en KV et supprimées automatiquement après 7 jours.
+
+Modération : le propriétaire (clé KV `owners`) reçoit chaque photo en notification avec un lien de
+suppression ; une photo signalée 2 fois est masquée. Voir [`worker/photos.ts`](worker/photos.ts).

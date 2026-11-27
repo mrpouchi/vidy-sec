@@ -6,6 +6,7 @@ import { zurichStamp } from '../model/time.ts'
 import { fetchForecast, parseForecast } from '../model/weather.ts'
 import { DayList } from './DayList.tsx'
 import { InstallHint } from './InstallHint.tsx'
+import { PhotoFeed } from './PhotoFeed.tsx'
 import { isSubscribed, pushSupport, subscribe, syncSpots, unsubscribe } from './push.ts'
 import { SkeletonCard, SpotCard } from './SpotCard.tsx'
 import { SpotsSheet } from './SpotsSheet.tsx'
@@ -195,6 +196,8 @@ export function App() {
       ) : (
         spots.map((id) => <SkeletonCard key={id} />)
       )}
+
+      {spots.length > 0 && <PhotoFeed spots={spots} toast={showToast} />}
 
       {views && views.length > 0 && <DayList views={views} />}
 

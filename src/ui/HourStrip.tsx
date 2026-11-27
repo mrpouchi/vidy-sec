@@ -49,7 +49,7 @@ export function HourStrip({ view }: { view: SpotView }) {
   const ticks = h.flatMap((x, i) => {
     const hr = hourOf(x.time)
     if (i === 0) return [{ i, label: 'Maint.', first: true }]
-    if (hr % 6 !== 0 || i < 5 || i > n - 3) return []
+    if (hr % 6 !== 0 || i < 7 || i > n - 3) return [] // pas collé à « Maint. » ni au bord droit
     return [{ i, label: hr === 0 ? weekday(dayOf(x.time)) : `${hr}h`, first: false }]
   })
 

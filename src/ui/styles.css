@@ -19,6 +19,7 @@
   --sheet: #f2f2f7;
   --group: #ffffff;
   --field: #f2f2f7;
+  --seg-on: #ffffff;
 
   --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
   --radius: 16px;
@@ -43,6 +44,7 @@
     --sheet: #1c1c1e;
     --group: #2c2c2e;
     --field: #1c1c1e;
+    --seg-on: #636366;
   }
 }
 
@@ -63,6 +65,7 @@
   --sheet: #1c1c1e;
   --group: #2c2c2e;
   --field: #1c1c1e;
+  --seg-on: #636366;
 }
 
 /* ─── Base ────────────────────────────────────────────────────────────────── */
@@ -526,6 +529,7 @@ button:focus-visible {
 
 .install {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: 12px;
   padding-right: 4px;
@@ -563,6 +567,17 @@ button:focus-visible {
 .install-btn {
   min-height: 36px;
   margin-top: 4px;
+}
+
+.install-video {
+  order: 3; /* sous le texte, sur toute la largeur */
+  display: block;
+  width: min(100%, 240px);
+  height: auto;
+  margin: 4px auto 8px;
+  border-radius: 14px;
+  box-shadow: 0 0 0 0.5px var(--hair);
+  background: var(--skeleton);
 }
 
 .install-close {
@@ -783,4 +798,208 @@ button:focus-visible {
   padding-top: 0;
   padding-bottom: 0;
   min-height: 60px;
+}
+
+/* ─── Photos ──────────────────────────────────────────────────────────────── */
+
+.photos {
+  padding-right: 0;
+  padding-bottom: 12px;
+}
+
+.photos-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  margin-top: -6px;
+  padding-right: 4px;
+}
+
+.photos-head .text-btn {
+  padding: 0 12px;
+}
+
+.photos-empty {
+  margin: 4px 16px 4px 0;
+  font-size: 15px;
+  line-height: 20px;
+  color: var(--text-2);
+}
+
+.photo-strip {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-right: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.photo-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.photo-item {
+  flex: none;
+  width: 112px;
+  scroll-snap-align: start;
+  text-align: left;
+}
+
+.photo-thumb {
+  display: block;
+  flex: none;
+  width: 112px;
+  height: 112px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: var(--skeleton);
+}
+
+.photo-meta {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 13px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.photo-meta b {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.compose-preview {
+  display: block;
+  width: 100%;
+  max-height: 40vh;
+  object-fit: contain;
+  border-radius: 12px;
+  background: var(--group);
+}
+
+.compose-caption {
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 0.5px solid var(--hair);
+  border-radius: 10px;
+  background: var(--group);
+  color: var(--text);
+  font: 400 17px/22px var(--font);
+}
+
+.compose-caption:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.segmented {
+  display: flex;
+  margin-top: 12px;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--skeleton);
+}
+
+.segmented button {
+  flex: 1;
+  min-height: 32px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.segmented button.on {
+  background: var(--seg-on);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  font-weight: 600;
+}
+
+.viewer {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: env(safe-area-inset-top) 0 0;
+  border: 0;
+  background: #000;
+  color: #fff;
+}
+
+.viewer[open] {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.viewer::backdrop {
+  background: #000;
+}
+
+.viewer-img,
+.viewer-bar {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.viewer[open] {
+  animation: fade 150ms ease-out;
+}
+
+.viewer-img {
+  display: block;
+  max-height: calc(100dvh - 120px);
+  object-fit: contain;
+}
+
+.viewer-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px calc(var(--gutter) + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom))
+    calc(var(--gutter) + env(safe-area-inset-left));
+}
+
+.viewer-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.viewer-title {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+}
+
+.viewer-caption {
+  font-size: 15px;
+  line-height: 20px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.viewer .text-btn {
+  padding: 0 10px;
+  color: #3d9bff;
+}
+
+.viewer .text-btn.muted {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.text-btn.danger,
+.viewer .text-btn.danger {
+  color: var(--wet);
+}
+
+.skeleton-block {
+  display: block;
 }
