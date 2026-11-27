@@ -142,6 +142,14 @@ describe('verdicts', () => {
     expect(todayLine(v).text).toBe('Route 🟢 sec toute la journée')
   })
 
+  it('le créneau qui avance avec les heures ne compte pas comme un changement', () => {
+    const w = weather(SUMMER)
+    const from = w.findIndex((h) => h.time === at(D, 8))
+    const morning = todayLine(buildView(route, w, `${day(D)}T08:30`), from).sig
+    const afternoon = todayLine(buildView(route, w, `${day(D)}T15:30`), from).sig
+    expect(changed(morning, afternoon)).toBe(false)
+  })
+
   it('détecte un changement de créneau significatif', () => {
     expect(changed({ q: 'dry', s: 11, e: 16 }, { q: 'dry', s: 12, e: 16 })).toBe(false)
     expect(changed({ q: 'dry', s: 11, e: 16 }, { q: 'dry', s: 13, e: 16 })).toBe(true)

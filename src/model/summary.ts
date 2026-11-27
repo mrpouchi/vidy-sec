@@ -239,17 +239,23 @@ const hoursRange = (w: Window) => {
   return a === b ? `${a}h` : `${a}h–${b}h`
 }
 
-/** Ligne de notification pour un spot + signature pour détecter les changements. */
-export function todayLine(v: SpotView): { text: string; sig: TodaySignature } {
+/**
+ * Ligne de notification pour un spot (créneau restant à partir de maintenant) + signature.
+ * La signature est calculée depuis un point fixe de la journée (`sigFrom`), sinon le créneau
+ * « rétrécirait » au fil des heures et déclencherait de faux changements.
+ */
+export function todayLine(v: SpotView, sigFrom = v.now): { text: string; sig: TodaySignature } {
   const today = dayOf(v.hours[v.now]!.time)
   const w = bestWindow(v, today, v.now)
+  const ref = bestWindow(v, today, sigFrom)
+  const sig: TodaySignature = ref ? { q: ref.quality, s: hourOf(ref.start), e: hourOf(ref.end) } : { q: 'none', s: -1, e: -1 }
   const name = v.spot.short
   if (w) {
     const range = hoursRange(w)
     const emoji = w.quality === 'dry' ? '🟢' : '🟡'
     const what = w.quality === 'dry' ? (w.allDay ? 'sec toute la journée' : `sec ${range}`) : `rideable ${range}`
     const extra = !w.nuance ? '' : w.quality === 'ride' ? ` · ${nuanceText(w.nuance)}` : ` · ${nuanceText(w.nuance)} ${w.nuanceWhen}`
-    return { text: `${name} ${emoji} ${what}${extra}`, sig: { q: w.quality, s: hourOf(w.start), e: hourOf(w.end) } }
+    return { text: `${name} ${emoji} ${what}${extra}`, sig }
   }
   for (let d = 1; d < 7; d++) {
     const date = addDays(today, d)
@@ -258,11 +264,11 @@ export function todayLine(v: SpotView): { text: string; sig: TodaySignature } {
       const day = d === 1 ? 'demain' : weekday(date)
       return {
         text: `${name} 🔴 pas de créneau aujourd'hui · ${day} ${hoursRange(n)}`,
-        sig: { q: 'none', s: -1, e: -1 },
+        sig,
       }
     }
   }
-  return { text: `${name} 🔴 pas de créneau sec cette semaine`, sig: { q: 'none', s: -1, e: -1 } }
+  return { text: `${name} 🔴 pas de créneau sec cette semaine`, sig }
 }
 
 /** Changement significatif entre deux signatures (créneau qui apparaît, disparaît ou bouge de ≥ 2 h). */

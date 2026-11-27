@@ -53,7 +53,11 @@ async function main() {
   const hour = Number(stamp.slice(11, 13))
 
   const all = parseForecast(await fetchForecast(SPOTS), SPOTS.length)
-  const lines = SPOTS.map((s, k) => ({ id: s.id, ...todayLine(buildView(s, all[k]!, stamp)) }))
+  const lines = SPOTS.map((s, k) => {
+    const hours = all[k]!
+    const dayStart = Math.max(0, hours.findIndex((h) => h.time >= `${today}T${String(DAILY_HOUR).padStart(2, '0')}:00`))
+    return { id: s.id, ...todayLine(buildView(s, hours, stamp), dayStart) }
+  })
   const sigs = Object.fromEntries(lines.map((l) => [l.id, l.sig]))
 
   const state = readState()
