@@ -8,6 +8,7 @@ import { DayList } from './DayList.tsx'
 import { InstallHint } from './InstallHint.tsx'
 import { Compose, Gallery, usePhotos, type Draft, type GalleryState } from './Photos.tsx'
 import { takenAt } from './photos.ts'
+import { flushReports, migrateLocalLog, sendReport } from './reports.ts'
 import { isSubscribed, pushSupport, refreshSubscription, subscribe, syncSpots, unsubscribe } from './push.ts'
 import { SkeletonCard, SpotCard } from './SpotCard.tsx'
 import { SpotsSheet } from './SpotsSheet.tsx'
@@ -88,25 +89,17 @@ export function App() {
   }, [data, feedback, minute, spots])
 
   const report = (view: SpotView, said: Said) => {
-    const next = addReport(feedback, {
-      at: zurichStamp(),
-      spot: view.spot.id,
-      said,
-      predicted: view.states[view.now]!.level,
-    })
+    const cur = view.states[view.now]!
+    const r = { at: zurichStamp(), spot: view.spot.id, said, predicted: cur.level }
+    const next = addReport(feedback, r)
     setFeedback(next)
     writeFeedback(next)
+    // Anonyme : sert à recalibrer le modèle pour tout le monde.
+    sendReport({ ...r, ...(cur.nuance ? { nuance: cur.nuance } : {}) })
     showToast('Merci, j’ajuste.')
   }
 
-  const copyReports = async () => {
-    try {
-      await navigator.clipboard.writeText(JSON.stringify(feedback, null, 2))
-      showToast('Retours copiés')
-    } catch {
-      showToast('Impossible de copier')
-    }
-  }
+
 
   const support = pushSupport()
   const [pushOn, setPushOn] = useState(false)
@@ -114,6 +107,8 @@ export function App() {
   useEffect(() => {
     void isSubscribed().then(setPushOn, () => {})
     void refreshSubscription(spots).catch(() => {})
+    migrateLocalLog(feedback.log)
+    void flushReports() // retours restés en attente (envoyés hors ligne)
   }, [])
   const togglePush = async () => {
     setPushBusy(true)
@@ -255,11 +250,6 @@ export function App() {
           </button>
         )}
         {support === 'install' && <p>Notifications : Partager → « Sur l’écran d’accueil », puis ouvre l’app.</p>}
-        {feedback.log.length > 0 && (
-          <button type="button" class="text-btn" onClick={() => void copyReports()}>
-            Copier mes retours ({feedback.log.length})
-          </button>
-        )}
       </footer>
 
       <input ref={picker} type="file" accept="image/*" hidden onChange={onPicked} />

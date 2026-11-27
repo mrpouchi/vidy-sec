@@ -21,8 +21,9 @@ Les scénarios de calibrage (dont le repère terrain « pas de pluie la veille n
 bowl presque sec, petites flaques au milieu ») sont dans
 [`src/model/drying.test.ts`](src/model/drying.test.ts) : `npm test`.
 
-Le bouton « Tu y es ? Sec / Mouillé » ajuste la vitesse de séchage sur ton téléphone. « Copier mes
-retours » (en bas de page) exporte le journal pour recalibrer les valeurs par défaut.
+Le bouton « Tu y es ? Sec / Mouillé » ajuste la vitesse de séchage du spot sur le téléphone, et
+envoie un retour anonyme au Worker (spot, constat, prévision, heure ; ni IP ni abonnement), gardé
+un an. Ces retours servent à recalibrer les valeurs par défaut : `GET /reports` avec `ADMIN_TOKEN`.
 
 ## Développer
 

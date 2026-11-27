@@ -4,6 +4,8 @@
  *  - DELETE /subscribe  le supprime
  *  - POST   /request    demande d'un nouveau spot (notifiée aux abonnés « owner »)
  *  - /photos…           feed de photos des spots (voir worker/photos.ts)
+ *  - POST   /reports    retour terrain anonyme « Sec / Mouillé » (recalibrage du modèle)
+ *  - GET    /reports    liste des retours (ADMIN_TOKEN)
  *  - GET    /requests   liste des demandes            ┐
  *  - POST   /run        envoi forcé (test)            ├ protégés par ADMIN_TOKEN
  *  - POST   /owner      marque un abonnement owner    ┘
@@ -14,6 +16,7 @@ import { zurichStamp } from '../src/model/time.ts'
 import { fetchForecast, parseForecast } from '../src/model/weather.ts'
 import { VAPID_PUBLIC } from '../src/notify/keys.ts'
 import { bodyFor, planNotification, type NotifyState } from '../src/notify/plan.ts'
+import { parseReport } from '../src/notify/reports.ts'
 import { parseSpotRequest, parseSpots, type SpotRequest } from '../src/notify/requests.ts'
 import { parseSubscription, sendPush, type PushSub, type Vapid } from '../src/notify/webpush.ts'
 import { handlePhotos } from './photos.ts'
@@ -210,6 +213,28 @@ export default {
         ),
       )
       return json({ ok: true }, 201, cors)
+    }
+
+    if (url.pathname === '/reports' && req.method === 'POST') {
+      const report = parseReport(await readJson(req))
+      if (!report) return json({ error: 'retour invalide' }, 400, cors)
+      // Anonyme : ni IP ni abonnement. Gardé un an pour recalibrer le modèle sur plusieurs saisons.
+      await env.SUBS.put(`fb:${Date.now()}:${crypto.randomUUID().slice(0, 8)}`, JSON.stringify({ ...report, received: Date.now() }), {
+        expirationTtl: 365 * 86_400,
+      })
+      return json({ ok: true }, 201, cors)
+    }
+
+    if (url.pathname === '/reports' && req.method === 'GET') {
+      if (!isAdmin(req, env)) return json({ error: 'non autorisé' }, 401, {})
+      const items: unknown[] = []
+      let cursor: string | undefined
+      do {
+        const page = await env.SUBS.list({ prefix: 'fb:', cursor })
+        for (const { name } of page.keys) items.push(JSON.parse((await env.SUBS.get(name)) ?? 'null'))
+        cursor = page.list_complete ? undefined : page.cursor
+      } while (cursor)
+      return json(items, 200, {})
     }
 
     if (url.pathname === '/requests' && req.method === 'GET') {
