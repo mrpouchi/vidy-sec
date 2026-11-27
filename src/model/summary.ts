@@ -233,13 +233,19 @@ export interface TodaySignature {
   e: number
 }
 
+const hoursRange = (w: Window) => {
+  const a = hourOf(w.start)
+  const b = hourOf(w.end)
+  return a === b ? `${a}h` : `${a}h–${b}h`
+}
+
 /** Ligne de notification pour un spot + signature pour détecter les changements. */
 export function todayLine(v: SpotView): { text: string; sig: TodaySignature } {
   const today = dayOf(v.hours[v.now]!.time)
   const w = bestWindow(v, today, v.now)
   const name = v.spot.short
   if (w) {
-    const range = `${hourOf(w.start)}h–${hourOf(w.end)}h`
+    const range = hoursRange(w)
     const emoji = w.quality === 'dry' ? '🟢' : '🟡'
     const what = w.quality === 'dry' ? (w.allDay ? 'sec toute la journée' : `sec ${range}`) : `rideable ${range}`
     const extra = !w.nuance ? '' : w.quality === 'ride' ? ` · ${nuanceText(w.nuance)}` : ` · ${nuanceText(w.nuance)} ${w.nuanceWhen}`
@@ -251,7 +257,7 @@ export function todayLine(v: SpotView): { text: string; sig: TodaySignature } {
     if (n) {
       const day = d === 1 ? 'demain' : weekday(date)
       return {
-        text: `${name} 🔴 pas de créneau aujourd'hui · ${day} ${hourOf(n.start)}h–${hourOf(n.end)}h`,
+        text: `${name} 🔴 pas de créneau aujourd'hui · ${day} ${hoursRange(n)}`,
         sig: { q: 'none', s: -1, e: -1 },
       }
     }
