@@ -98,9 +98,11 @@ export async function handlePhotos(req: Request, url: URL, d: PhotoDeps): Promis
     const next = [entry, ...feed].sort((a, b) => b.at - a.at).slice(0, 200)
     await d.kv.put(FEED, JSON.stringify(next))
 
-    const name = SPOTS.find((s) => s.id === spot)!.short
+    // Toucher la notification ouvre la photo (avec « Supprimer » pour le propriétaire).
+    const where = SPOTS.find((s) => s.id === spot)!.at
     const link = `${d.siteUrl}?photo=${entry.id}&del=${entry.token}`
-    d.waitUntil(d.notifyOwner(`Nouvelle photo · ${name}`, entry.caption || 'Touche pour la voir ou la supprimer.', link))
+    const body = entry.caption ? `« ${entry.caption} » · Viens rider 🤙` : 'Viens rider 🤙'
+    d.waitUntil(d.notifyOwner(`Nouvelle photo partagée ${where}`, body, link))
     // Le jeton n'est renvoyé qu'à l'auteur : il lui permet de supprimer sa photo.
     return d.reply({ ...publicView(entry), token: entry.token }, 201)
   }
@@ -127,8 +129,8 @@ export async function handlePhotos(req: Request, url: URL, d: PhotoDeps): Promis
     e.reports += 1
     await d.kv.put(FEED, JSON.stringify(feed))
     if (e.reports === HIDE_AFTER_REPORTS) {
-      const name = SPOTS.find((s) => s.id === e.spot)?.short ?? e.spot
-      d.waitUntil(d.notifyOwner(`Photo masquée · ${name}`, 'Signalée 2 fois. Touche pour la supprimer.', `${d.siteUrl}?photo=${e.id}&del=${e.token}`))
+      const where = SPOTS.find((s) => s.id === e.spot)?.at ?? ''
+      d.waitUntil(d.notifyOwner(`Photo masquée ${where}`, 'Signalée 2 fois.', `${d.siteUrl}?photo=${e.id}&del=${e.token}`))
     }
     return d.reply({ ok: true }, 200)
   }

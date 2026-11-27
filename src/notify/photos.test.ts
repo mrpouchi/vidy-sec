@@ -43,7 +43,7 @@ describe('photos', () => {
     const at15 = Date.UTC(2026, 10, 28, 14, 2) // 15h02
     expect(dayTime(at15, now)).toBe('à 15h02')
     expect(dayTime(at15 - 86_400_000, now)).toBe('hier à 15h02')
-    expect(dayTime(at15 - 3 * 86_400_000, now)).toBe('mer. à 15h02')
+    expect(dayTime(at15 - 3 * 86_400_000, now)).toBe('mercredi à 15h02')
     expect(timesLine({ id: 'a', spot: 'bowl', caption: '', at: at15, posted: at15 + 3 * 3_600_000 }, now)).toBe(
       'Prise à 15h02 · publiée à 18h02',
     )

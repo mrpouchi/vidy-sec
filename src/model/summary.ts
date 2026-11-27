@@ -2,7 +2,7 @@ import { CAL } from './calibration.ts'
 import type { Hour, Level, Nuance, SpotHour } from './drying.ts'
 import { simulate } from './drying.ts'
 import { usable, type Spot } from './spots.ts'
-import { addDays, capitalize, dayDiff, dayOf, hourOf, nowIndex, weekday, when } from './time.ts'
+import { addDays, capitalize, dayDiff, dayOf, hourOf, nowIndex, weekday, weekdayLong, when } from './time.ts'
 
 export interface SpotView {
   spot: Spot
@@ -65,7 +65,7 @@ export function verdict(v: SpotView): string {
     if (k === -1) return `${prep} ${at(i)}`
     const morning = v.hours[k]!.time
     const d = dayDiff(ref, morning)
-    return d === 0 ? "d'ici ce matin" : d === 1 ? "d'ici demain matin" : `d'ici ${weekday(dayOf(morning))} matin`
+    return d === 0 ? "d'ici ce matin" : d === 1 ? "d'ici demain matin" : `d'ici ${weekdayLong(dayOf(morning))} matin`
   }
 
   if (cur.level === 'dry') {
@@ -261,7 +261,7 @@ export function todayLine(v: SpotView, sigFrom = v.now): { text: string; sig: To
     const date = addDays(today, d)
     const n = bestWindow(v, date)
     if (n) {
-      const day = d === 1 ? 'demain' : weekday(date)
+      const day = d === 1 ? 'demain' : weekdayLong(date)
       return {
         text: `${name} 🔴 pas de créneau aujourd'hui · ${day} ${hoursRange(n)}`,
         sig,
