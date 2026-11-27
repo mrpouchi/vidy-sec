@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { SPOTS } from '../model/spots.ts'
-import { CAPTION_MAX, PHOTO_TTL_DAYS, ago, type Photo } from '../notify/photos.ts'
+import { CAPTION_MAX, PHOTO_TTL_DAYS, ago, validTakenAt, type Photo } from '../notify/photos.ts'
 import { closeOnBackdrop, useModal } from './modal.ts'
 import { compress, fetchFeed, photoUrl, remove, report, upload } from './photos.ts'
 
@@ -152,28 +152,48 @@ export interface Draft {
   file: Blob
   preview: string
   spot: string
+  /** Heure de prise lue dans la photo (EXIF), si disponible. */
+  taken: number | null
 }
+
+/** ms ↔ valeur d'un <input type="datetime-local"> (heure locale du téléphone). */
+const pad = (n: number) => String(n).padStart(2, '0')
+function toLocalInput(ms: number): string {
+  const d = new Date(ms)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+const fromLocalInput = (v: string) => new Date(v).getTime()
 
 /** Publier une photo pour un spot (choisi depuis sa carte). */
 export function Compose(props: { draft: Draft | null; onClose(): void; onDone(p: Photo): void; toast(msg: string): void }) {
   const { draft, onClose } = props
   const dialog = useModal(draft !== null)
   const [caption, setCaption] = useState('')
+  const [when, setWhen] = useState('')
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    if (draft) setCaption('')
+    if (!draft) return
+    setCaption('')
+    // Heure de la photo si elle est lisible et plausible, sinon maintenant.
+    setWhen(toLocalInput(draft.taken && validTakenAt(draft.taken) ? draft.taken : Date.now()))
   }, [draft])
+
+  const takenMs = fromLocalInput(when)
+  const takenOk = validTakenAt(takenMs)
+  const fromExif = draft?.taken != null && validTakenAt(draft.taken) && Math.abs(draft.taken - takenMs) < 60_000
 
   const publish = async (e: Event) => {
     e.preventDefault()
-    if (!draft) return
+    if (!draft || !takenOk) return
     setBusy(true)
     try {
-      props.onDone(await upload(await compress(draft.file), draft.spot, caption))
+      props.onDone(await upload(await compress(draft.file), draft.spot, caption, takenMs))
     } catch (err) {
       const m = err instanceof Error ? err.message : ''
-      props.toast(m === 'trop' ? 'Une photo par minute' : m === 'trop lourde' ? 'Photo trop lourde' : 'Envoi impossible')
+      props.toast(
+        m === 'trop' ? 'Une photo par minute' : m === 'trop lourde' ? 'Photo trop lourde' : m === 'heure' ? 'Heure de prise invalide' : 'Envoi impossible',
+      )
     } finally {
       setBusy(false)
     }
@@ -187,11 +207,32 @@ export function Compose(props: { draft: Draft | null; onClose(): void; onDone(p:
             Annuler
           </button>
           <h2 id="compose-title">{draft ? spotName(draft.spot) : 'Nouvelle photo'}</h2>
-          <button type="submit" class="text-btn" disabled={busy}>
+          <button type="submit" class="text-btn" disabled={busy || !takenOk}>
             {busy ? 'Envoi…' : 'Publier'}
           </button>
         </div>
         {draft && <img class="compose-preview" src={draft.preview} alt="Aperçu de la photo" />}
+        <label class="compose-when">
+          <span class="compose-when-label">Prise</span>
+          <input
+            type="datetime-local"
+            value={when}
+            min={toLocalInput(Date.now() - PHOTO_TTL_DAYS * 86_400_000)}
+            max={toLocalInput(Date.now())}
+            onInput={(e) => setWhen(e.currentTarget.value)}
+          />
+        </label>
+        <p class={`compose-when-hint${takenOk ? '' : ' bad'}`}>
+          {!takenOk
+            ? takenMs > Date.now()
+              ? 'Cette heure est dans le futur.'
+              : `Photo de plus de ${PHOTO_TTL_DAYS} jours : trop ancienne pour l’état du spot.`
+            : fromExif
+              ? `Heure lue dans la photo · ${ago(takenMs)}`
+              : draft?.taken == null
+                ? 'Heure inconnue : ajuste-la si tu as pris la photo plus tôt.'
+                : ago(takenMs)}
+        </p>
         <input
           class="compose-caption"
           type="text"

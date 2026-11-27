@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ago, cleanCaption, isJpeg, isSpotId, PHOTO_MAX_BYTES } from './photos.ts'
+import { ago, cleanCaption, isJpeg, isSpotId, PHOTO_MAX_BYTES, validTakenAt } from './photos.ts'
 
 describe('photos', () => {
   it('accepte seulement un vrai JPEG de taille raisonnable', () => {
@@ -27,5 +27,14 @@ describe('photos', () => {
     expect(ago(now - 3 * 3_600_000, now)).toBe('il y a 3 h')
     expect(ago(now - 26 * 3_600_000, now)).toBe('hier')
     expect(ago(now - 4 * 86_400_000, now)).toBe('il y a 4 j')
+  })
+
+  it('accepte une heure de prise des 7 derniers jours, pas dans le futur', () => {
+    const now = Date.UTC(2026, 10, 28, 18)
+    expect(validTakenAt(now - 3 * 3_600_000, now)).toBe(true) // prise à 15h, envoyée à 18h
+    expect(validTakenAt(now + 2 * 60_000, now)).toBe(true) // horloge du téléphone un peu en avance
+    expect(validTakenAt(now + 3_600_000, now)).toBe(false)
+    expect(validTakenAt(now - 8 * 86_400_000, now)).toBe(false)
+    expect(validTakenAt(Number.NaN, now)).toBe(false)
   })
 })

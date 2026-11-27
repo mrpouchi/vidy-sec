@@ -12,7 +12,12 @@ export interface Photo {
   id: string
   spot: string
   caption: string
-  at: number // ms epoch
+  at: number // ms epoch : heure de prise de vue (ou d'envoi si inconnue)
+}
+
+/** Heure de prise acceptée : pas dans le futur (5 min de marge), pas plus vieille que la durée de vie. */
+export function validTakenAt(taken: number, now = Date.now()): boolean {
+  return Number.isFinite(taken) && taken <= now + 5 * 60_000 && taken >= now - PHOTO_TTL_DAYS * 86_400_000
 }
 
 export function isSpotId(v: unknown): v is string {

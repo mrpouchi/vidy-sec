@@ -1,6 +1,7 @@
 /**
  * Feed de photos :
- *  - POST   /photos?spot=bowl&caption=…   corps = JPEG (compressé par l'app)
+ *  - POST   /photos?spot=bowl&caption=…&taken=<ms>   corps = JPEG (compressé par l'app) ;
+ *                                       taken = heure de prise (EXIF, lue par l'app)
  *  - GET    /photos                      feed public (7 jours, photos signalées masquées)
  *  - GET    /photos/:id                  l'image
  *  - POST   /photos/:id/report           signalement (1 par IP et par photo)
@@ -17,6 +18,7 @@ import {
   cleanCaption,
   isJpeg,
   isSpotId,
+  validTakenAt,
   type Photo,
 } from '../src/notify/photos.ts'
 
@@ -73,6 +75,10 @@ export async function handlePhotos(req: Request, url: URL, d: PhotoDeps): Promis
     const spot = url.searchParams.get('spot')
     if (!isSpotId(spot)) return d.reply({ error: 'spot inconnu' }, 400)
     if (Number(req.headers.get('Content-Length') ?? 0) > PHOTO_MAX_BYTES) return d.reply({ error: 'photo trop lourde' }, 413)
+    const now = Date.now()
+    const takenParam = url.searchParams.get('taken')
+    const taken = takenParam ? Number(takenParam) : now
+    if (!validTakenAt(taken, now)) return d.reply({ error: 'heure de prise invalide' }, 400)
     const bytes = new Uint8Array(await req.arrayBuffer())
     if (!isJpeg(bytes)) return d.reply({ error: 'photo invalide' }, 400)
     // Anti-spam : une photo par minute et par adresse IP (60 s = durée minimale en KV).
@@ -83,13 +89,16 @@ export async function handlePhotos(req: Request, url: URL, d: PhotoDeps): Promis
       id: `${Date.now().toString(36)}${crypto.randomUUID().slice(0, 6)}`,
       spot,
       caption: cleanCaption(url.searchParams.get('caption')),
-      at: Date.now(),
+      at: Math.min(taken, now), // heure de prise : « il y a 3 h » même si envoyée plus tard
       reports: 0,
       token: crypto.randomUUID(),
     }
-    await d.kv.put(`img:${entry.id}`, bytes.buffer, { expirationTtl: TTL })
+    // L'image expire 7 jours après la prise de vue, comme son entrée dans le feed.
+    const left = Math.max(60, TTL - Math.floor((now - entry.at) / 1000))
+    await d.kv.put(`img:${entry.id}`, bytes.buffer, { expirationTtl: left })
     const feed = await readFeed(d.kv)
-    await d.kv.put(FEED, JSON.stringify([entry, ...feed].slice(0, 200)))
+    const next = [entry, ...feed].sort((a, b) => b.at - a.at).slice(0, 200)
+    await d.kv.put(FEED, JSON.stringify(next))
 
     const name = SPOTS.find((s) => s.id === spot)!.short
     const link = `${d.siteUrl}?photo=${entry.id}&del=${entry.token}`

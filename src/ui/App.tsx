@@ -7,6 +7,7 @@ import { fetchForecast, parseForecast } from '../model/weather.ts'
 import { DayList } from './DayList.tsx'
 import { InstallHint } from './InstallHint.tsx'
 import { Compose, Gallery, usePhotos, type Draft, type GalleryState } from './Photos.tsx'
+import { takenAt } from './photos.ts'
 import { isSubscribed, pushSupport, refreshSubscription, subscribe, syncSpots, unsubscribe } from './push.ts'
 import { SkeletonCard, SpotCard } from './SpotCard.tsx'
 import { SpotsSheet } from './SpotsSheet.tsx'
@@ -148,7 +149,9 @@ export function App() {
     const el = e.currentTarget as HTMLInputElement
     const file = el.files?.[0]
     el.value = ''
-    if (file) setDraft({ file, preview: URL.createObjectURL(file), spot: pickFor.current })
+    if (!file) return
+    const spot = pickFor.current
+    void takenAt(file).then((taken) => setDraft({ file, preview: URL.createObjectURL(file), spot, taken }))
   }
   const closeDraft = () => {
     if (draft) URL.revokeObjectURL(draft.preview)

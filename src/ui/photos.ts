@@ -1,5 +1,6 @@
 /** Client du feed de photos (Worker, voir worker/photos.ts). */
 import { PHOTO_MAX_BYTES, PHOTO_MAX_SIDE, type Photo } from '../notify/photos.ts'
+import { exifTakenAt } from '../notify/exif.ts'
 import { PUSH_API } from './push.ts'
 
 export const photoUrl = (id: string) => `${PUSH_API}/photos/${id}`
@@ -29,10 +30,11 @@ export async function compress(file: Blob): Promise<Blob> {
   throw new Error('trop lourde')
 }
 
-export async function upload(jpeg: Blob, spot: string, caption: string): Promise<Photo> {
-  const q = new URLSearchParams({ spot, caption })
+export async function upload(jpeg: Blob, spot: string, caption: string, taken: number): Promise<Photo> {
+  const q = new URLSearchParams({ spot, caption, taken: String(Math.round(taken)) })
   const res = await fetch(`${PUSH_API}/photos?${q}`, { method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: jpeg })
   if (res.status === 429) throw new Error('trop')
+  if (res.status === 400 && (await res.clone().json().catch(() => ({}))).error === 'heure de prise invalide') throw new Error('heure')
   if (!res.ok) throw new Error(`serveur ${res.status}`)
   return (await res.json()) as Photo
 }
@@ -45,4 +47,13 @@ export async function report(id: string): Promise<void> {
 export async function remove(id: string, token: string): Promise<void> {
   const res = await fetch(`${PUSH_API}/photos/${id}?token=${encodeURIComponent(token)}`, { method: 'DELETE' })
   if (!res.ok) throw new Error(`serveur ${res.status}`)
+}
+
+/** Heure de prise de vue lue dans l'EXIF (avant compression) ; null si absente. */
+export async function takenAt(file: Blob): Promise<number | null> {
+  try {
+    return exifTakenAt(await file.slice(0, 256 * 1024).arrayBuffer())
+  } catch {
+    return null
+  }
 }

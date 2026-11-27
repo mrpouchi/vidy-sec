@@ -1017,3 +1017,41 @@ button:focus-visible {
   min-width: 44px;
   color: var(--accent);
 }
+
+.compose-when {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  margin-top: 12px;
+  padding: 0 4px 0 12px;
+  border-radius: 10px;
+  background: var(--group);
+}
+
+.compose-when-label {
+  font-size: 17px;
+  line-height: 22px;
+}
+
+.compose-when input {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--skeleton);
+  color: var(--text);
+  font: 400 17px/22px var(--font);
+}
+
+.compose-when-hint {
+  margin: 6px 12px 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+
+.compose-when-hint.bad {
+  color: var(--wet);
+}
