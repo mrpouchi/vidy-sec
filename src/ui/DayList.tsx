@@ -26,10 +26,12 @@ export function DayList({ views }: { views: SpotView[] }) {
   const today = dayOf(first.hours[first.now]!.time)
   const perSpot = views.map((v) => days(v))
   const rows = perSpot[0]!
-  const columns = { gridTemplateColumns: `64px repeat(${views.length}, 1fr) 80px` }
+  // Au-delà de 2 spots : version compacte (texte plus petit, pluie seule) pour tenir sur 375 pt.
+  const compact = views.length > 2
+  const columns = { gridTemplateColumns: compact ? `50px repeat(${views.length}, 1fr) 48px` : `64px repeat(${views.length}, 1fr) 80px` }
 
   return (
-    <section class="card days" aria-labelledby="days-title">
+    <section class={`card days${compact ? ' compact' : ''}`} aria-labelledby="days-title">
       <div class="days-row days-head" style={columns}>
         <h2 id="days-title" class="eyebrow">
           7 jours
@@ -46,7 +48,8 @@ export function DayList({ views }: { views: SpotView[] }) {
             <Pill day={perSpot[k]![r]!} spot={v.spot.short} />
           ))}
           <span class="right meta">
-            {d.rain >= 0.1 ? `${formatMm(d.rain)} mm` : '0 mm'} · {Math.round(d.tmax)}°
+            {d.rain >= 0.1 ? `${formatMm(d.rain)} mm` : '0 mm'}
+            {!compact && ` · ${Math.round(d.tmax)}°`}
           </span>
         </div>
       ))}

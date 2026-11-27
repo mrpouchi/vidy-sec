@@ -1,18 +1,17 @@
 import { CAL } from './calibration.ts'
 import type { Level } from './drying.ts'
-import type { SpotKind } from './spots.ts'
 
 export type Said = 'dry' | 'wet'
 
 export interface Report {
   at: string // 'YYYY-MM-DDTHH:MM' heure de Zurich
-  spot: SpotKind
+  spot: string // identifiant du spot
   said: Said
   predicted: Level
 }
 
 export interface Feedback {
-  factors: Record<SpotKind, number>
+  factors: Record<string, number> // absent = 1 (pas encore de retour)
   log: Report[]
 }
 
@@ -30,7 +29,7 @@ export function adjustFactor(factor: number, said: Said, predicted: Level): numb
 
 export function addReport(fb: Feedback, r: Report): Feedback {
   return {
-    factors: { ...fb.factors, [r.spot]: adjustFactor(fb.factors[r.spot], r.said, r.predicted) },
+    factors: { ...fb.factors, [r.spot]: adjustFactor(fb.factors[r.spot] ?? 1, r.said, r.predicted) },
     log: [...fb.log, r].slice(-200),
   }
 }

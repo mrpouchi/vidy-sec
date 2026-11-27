@@ -13,7 +13,7 @@ export interface SpotView {
 
 export function buildView(spot: Spot, hours: Hour[], stamp: string, factor = 1): SpotView {
   const now = nowIndex(hours, stamp)
-  return { spot, hours, states: simulate(hours, spot.id, factor, now), now }
+  return { spot, hours, states: simulate(hours, spot.kind, factor, now), now }
 }
 
 // ─── Mots ────────────────────────────────────────────────────────────────────

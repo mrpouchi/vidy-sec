@@ -408,6 +408,24 @@ button:focus-visible {
   white-space: nowrap;
 }
 
+.days.compact .days-row {
+  gap: 6px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.days.compact .days-head .eyebrow {
+  font-size: 13px;
+}
+
+.days.compact .pill {
+  gap: 4px;
+}
+
+.days.compact .pill.none {
+  padding-left: 12px;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
