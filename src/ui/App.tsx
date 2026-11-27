@@ -5,6 +5,7 @@ import { buildView, type SpotView } from '../model/summary.ts'
 import { zurichStamp } from '../model/time.ts'
 import { fetchForecast, parseForecast } from '../model/weather.ts'
 import { DayList } from './DayList.tsx'
+import { pushSupport, subscribe } from './push.ts'
 import { SkeletonCard, SpotCard } from './SpotCard.tsx'
 import { readCache, readFeedback, writeCache, writeFeedback, type Cached } from './storage.ts'
 
@@ -96,6 +97,24 @@ export function App() {
     }
   }
 
+  const [pushCode, setPushCode] = useState<string | null>(null)
+  const support = pushSupport()
+  const enablePush = async () => {
+    try {
+      setPushCode(await subscribe())
+    } catch (e) {
+      showToast(e instanceof Error && e.message === 'refusé' ? 'Notifications refusées' : 'Impossible d’activer')
+    }
+  }
+  const copyPush = async () => {
+    try {
+      await navigator.clipboard.writeText(pushCode ?? '')
+      showToast('Code copié')
+    } catch {
+      showToast('Impossible de copier')
+    }
+  }
+
   const stale = data && Date.now() - data.at > STALE_AFTER
   const updated = data ? zurichStamp(new Date(data.at)).slice(11) : null
 
@@ -142,11 +161,27 @@ export function App() {
 
       {views && <DayList views={views} />}
 
+      {pushCode && (
+        <section class="card push">
+          <p>Notifications activées. Copie ce code et envoie-le à Claude pour finir.</p>
+          <textarea readOnly rows={3} value={pushCode} onFocus={(e) => e.currentTarget.select()} />
+          <button type="button" class="text-btn" onClick={() => void copyPush()}>
+            Copier le code
+          </button>
+        </section>
+      )}
+
       <footer class="foot">
         <p>Estimation : vérifie toujours sur place.</p>
         <p>
           Météo MeteoSwiss via <a href="https://open-meteo.com/">Open-Meteo</a>
         </p>
+        {support === 'ok' && !pushCode && (
+          <button type="button" class="text-btn" onClick={() => void enablePush()}>
+            Activer les notifications
+          </button>
+        )}
+        {support === 'install' && <p>Notifications : ajoute l’app à l’écran d’accueil d’abord.</p>}
         {feedback.log.length > 0 && (
           <button type="button" class="text-btn" onClick={() => void copyReports()}>
             Copier mes retours ({feedback.log.length})

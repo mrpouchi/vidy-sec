@@ -4,13 +4,15 @@
  *  - Mise à jour entre 8h et 21h si le créneau du jour change vraiment (max 3 / jour).
  *
  * Usage : tsx scripts/notify.ts [--dry-run] [--force]
- * Env   : NTFY_TOPIC (secret), SITE_URL (lien au clic)
+ * Env   : NTFY_TOPIC, PUSH_SUBSCRIPTION + VAPID_PRIVATE (secrets, chacun optionnel), SITE_URL
  */
 import { readFileSync, writeFileSync } from 'node:fs'
+import webpush from 'web-push'
 import { SPOTS } from '../src/model/spots.ts'
 import { buildView, changed, todayLine, type TodaySignature } from '../src/model/summary.ts'
 import { dayOf, longDate, zurichStamp } from '../src/model/time.ts'
 import { fetchForecast, parseForecast } from '../src/model/weather.ts'
+import { VAPID_PUBLIC } from '../src/ui/push.ts'
 
 const STATE_FILE = new URL('../state/notify.json', import.meta.url)
 const DAILY_HOUR = 8
@@ -35,9 +37,7 @@ function readState(): State {
   }
 }
 
-async function publish(title: string, message: string): Promise<void> {
-  const topic = process.env.NTFY_TOPIC
-  if (!topic) throw new Error('NTFY_TOPIC manquant')
+async function viaNtfy(topic: string, title: string, message: string): Promise<void> {
   // API JSON : les accents passent dans le titre (les en-têtes HTTP sont ASCII).
   const res = await fetch('https://ntfy.sh', {
     method: 'POST',
@@ -45,6 +45,26 @@ async function publish(title: string, message: string): Promise<void> {
     body: JSON.stringify({ topic, title, message, tags: ['skateboard'], click: process.env.SITE_URL || undefined }),
   })
   if (!res.ok) throw new Error(`ntfy ${res.status} ${await res.text()}`)
+}
+
+async function viaWebPush(subs: string, key: string, title: string, message: string): Promise<void> {
+  webpush.setVapidDetails('https://github.com/mrpouchi/vidy-sec', VAPID_PUBLIC, key)
+  const parsed = JSON.parse(subs) as webpush.PushSubscription | webpush.PushSubscription[]
+  const list = Array.isArray(parsed) ? parsed : [parsed]
+  const payload = JSON.stringify({ title, body: message, url: process.env.SITE_URL })
+  await Promise.all(list.map((sub) => webpush.sendNotification(sub, payload, { TTL: 6 * 3600, urgency: 'normal' })))
+}
+
+/** Envoie par tous les canaux configurés ; échoue seulement si aucun n'a marché. */
+async function publish(title: string, message: string): Promise<void> {
+  const { NTFY_TOPIC, PUSH_SUBSCRIPTION, VAPID_PRIVATE } = process.env
+  const jobs: Promise<void>[] = []
+  if (NTFY_TOPIC) jobs.push(viaNtfy(NTFY_TOPIC, title, message))
+  if (PUSH_SUBSCRIPTION && VAPID_PRIVATE) jobs.push(viaWebPush(PUSH_SUBSCRIPTION, VAPID_PRIVATE, title, message))
+  if (jobs.length === 0) throw new Error('aucun canal configuré (NTFY_TOPIC ou PUSH_SUBSCRIPTION + VAPID_PRIVATE)')
+  const results = await Promise.allSettled(jobs)
+  for (const r of results) if (r.status === 'rejected') console.error('Échec d’un canal :', r.reason)
+  if (results.every((r) => r.status === 'rejected')) throw new Error('aucun canal n’a fonctionné')
 }
 
 async function main() {

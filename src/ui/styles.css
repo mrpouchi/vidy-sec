@@ -499,3 +499,26 @@ button:focus-visible {
 .foot a {
   color: inherit;
 }
+
+.push {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.push textarea {
+  width: 100%;
+  resize: none;
+  padding: 8px;
+  border: 0.5px solid var(--hair);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-2);
+  font: 11px/14px ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.push .text-btn {
+  align-self: flex-start;
+}

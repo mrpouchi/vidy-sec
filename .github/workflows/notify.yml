@@ -31,6 +31,8 @@ jobs:
       - run: npx tsx scripts/notify.ts ${{ inputs.force && '--force' || '' }}
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          PUSH_SUBSCRIPTION: ${{ secrets.PUSH_SUBSCRIPTION }}
+          VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
           SITE_URL: https://${{ github.repository_owner }}.github.io/vidy-sec/
       - name: Sauvegarder l'état
         run: |
