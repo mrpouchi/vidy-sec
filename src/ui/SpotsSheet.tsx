@@ -56,7 +56,7 @@ export function SpotsSheet({ open, selected, onChange, onClose }: Props) {
       class="sheet"
       tabIndex={-1}
       aria-labelledby="sheet-title"
-      onClose={onClose}
+      onCancel={(e) => { e.preventDefault(); onClose() }}
       onClick={(e) => closeOnBackdrop(e, onClose)}
     >
       <div class="grabber" aria-hidden="true" />

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { SPOTS } from '../model/spots.ts'
-import { CAPTION_MAX, PHOTO_TTL_DAYS, ago, validTakenAt, type Photo } from '../notify/photos.ts'
+import { CAPTION_MAX, PHOTO_TTL_DAYS, ago, timesLine, validTakenAt, type Photo } from '../notify/photos.ts'
 import { closeOnBackdrop, useModal, useSwipeDown } from './modal.ts'
-import { compress, fetchFeed, photoUrl, remove, report, upload } from './photos.ts'
+import { compress, fetchFeed, myToken, photoUrl, remove, report, upload } from './photos.ts'
 
 const spotName = (id: string) => SPOTS.find((s) => s.id === id)?.name ?? ''
 
@@ -74,7 +74,9 @@ export function Gallery(props: {
   const track = useRef<HTMLDivElement>(null)
   const body = useRef<HTMLDivElement>(null)
   const [index, setIndex] = useState(0)
+  const [confirm, setConfirm] = useState(false)
   useSwipeDown(body, onClose, { fade: dialog, active: state !== null })
+  useEffect(() => setConfirm(false), [index, state])
   const [busy, setBusy] = useState(false)
 
   // Ouvre directement sur la photo touchée.
@@ -107,7 +109,7 @@ export function Gallery(props: {
   const photos = state?.photos ?? []
   const p = photos[index]
   return (
-    <dialog ref={dialog} class="viewer" tabIndex={-1} aria-label="Photos du spot" onClose={onClose} onClick={(e) => e.target === dialog.current && onClose()}>
+    <dialog ref={dialog} class="viewer" tabIndex={-1} aria-label="Photos du spot" onCancel={(e) => { e.preventDefault(); onClose() }} onClick={(e) => e.target === dialog.current && onClose()}>
       {state && (
         <div ref={body} class="viewer-body">
           <div class="viewer-top">
@@ -131,17 +133,30 @@ export function Gallery(props: {
                     {spotName(p.spot)} · {ago(p.at)}
                   </p>
                 )}
+                {p.at > 0 && <p class="viewer-times">{timesLine(p)}</p>}
                 {p.caption && <p class="viewer-caption">{p.caption}</p>}
               </div>
-              {state.del ? (
-                <button type="button" class="text-btn danger" disabled={busy} onClick={() => void act(() => remove(p.id, state.del!), () => props.onDeleted(p.id))}>
-                  Supprimer
-                </button>
-              ) : (
-                <button type="button" class="text-btn muted" disabled={busy} onClick={() => void act(() => report(p.id), props.onReported)}>
-                  Signaler
-                </button>
-              )}
+              {(() => {
+                // Supprimer : l'auteur (jeton gardé sur son téléphone) ou le propriétaire (lien de notification).
+                const token = state.del ?? myToken(p.id)
+                if (!token) {
+                  return (
+                    <button type="button" class="text-btn muted" disabled={busy} onClick={() => void act(() => report(p.id), props.onReported)}>
+                      Signaler
+                    </button>
+                  )
+                }
+                return (
+                  <button
+                    type="button"
+                    class="text-btn danger"
+                    disabled={busy}
+                    onClick={() => (confirm ? void act(() => remove(p.id, token), () => props.onDeleted(p.id)) : setConfirm(true))}
+                  >
+                    {confirm ? 'Confirmer' : 'Supprimer'}
+                  </button>
+                )
+              })()}
             </div>
           )}
         </div>
@@ -154,8 +169,8 @@ export interface Draft {
   file: Blob
   preview: string
   spot: string
-  /** Heure de prise lue dans la photo (EXIF), si disponible. */
-  taken: number | null
+  /** Heure de prise : lue dans la photo (EXIF) ou, à défaut, date du fichier. */
+  taken: { at: number; source: 'exif' | 'file' } | null
 }
 
 /** ms ↔ valeur d'un <input type="datetime-local"> (heure locale du téléphone). */
@@ -179,12 +194,12 @@ export function Compose(props: { draft: Draft | null; onClose(): void; onDone(p:
     if (!draft) return
     setCaption('')
     // Heure de la photo si elle est lisible et plausible, sinon maintenant.
-    setWhen(toLocalInput(draft.taken && validTakenAt(draft.taken) ? draft.taken : Date.now()))
+    setWhen(toLocalInput(draft.taken && validTakenAt(draft.taken.at) ? draft.taken.at : Date.now()))
   }, [draft])
 
   const takenMs = fromLocalInput(when)
   const takenOk = validTakenAt(takenMs)
-  const fromExif = draft?.taken != null && validTakenAt(draft.taken) && Math.abs(draft.taken - takenMs) < 60_000
+  const auto = draft?.taken && validTakenAt(draft.taken.at) && Math.abs(draft.taken.at - takenMs) < 60_000 ? draft.taken.source : null
 
   const publish = async (e: Event) => {
     e.preventDefault()
@@ -203,7 +218,7 @@ export function Compose(props: { draft: Draft | null; onClose(): void; onDone(p:
   }
 
   return (
-    <dialog ref={dialog} class="sheet" tabIndex={-1} aria-labelledby="compose-title" onClose={onClose} onClick={(e) => closeOnBackdrop(e, onClose)}>
+    <dialog ref={dialog} class="sheet" tabIndex={-1} aria-labelledby="compose-title" onCancel={(e) => { e.preventDefault(); onClose() }} onClick={(e) => closeOnBackdrop(e, onClose)}>
       <form onSubmit={(e) => void publish(e)}>
         <div class="grabber" aria-hidden="true" />
         <div class="sheet-head">
@@ -231,11 +246,13 @@ export function Compose(props: { draft: Draft | null; onClose(): void; onDone(p:
             ? takenMs > Date.now()
               ? 'Cette heure est dans le futur.'
               : `Photo de plus de ${PHOTO_TTL_DAYS} jours : trop ancienne pour l’état du spot.`
-            : fromExif
+            : auto === 'exif'
               ? `Heure lue dans la photo · ${ago(takenMs)}`
-              : draft?.taken == null
-                ? 'Heure inconnue : ajuste-la si tu as pris la photo plus tôt.'
-                : ago(takenMs)}
+              : auto === 'file'
+                ? `Heure du fichier · ${ago(takenMs)} · vérifie-la`
+                : draft?.taken == null && Math.abs(Date.now() - takenMs) < 2 * 60_000
+                  ? 'Heure inconnue : ajuste-la si tu as pris la photo plus tôt.'
+                  : ago(takenMs)}
         </p>
         <input
           class="compose-caption"

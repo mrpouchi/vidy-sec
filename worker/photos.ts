@@ -44,7 +44,7 @@ async function readFeed(kv: PhotoKV): Promise<Entry[]> {
   return all.filter((e) => e.at > since)
 }
 
-const publicView = (e: Entry): Photo => ({ id: e.id, spot: e.spot, caption: e.caption, at: e.at })
+const publicView = (e: Entry): Photo => ({ id: e.id, spot: e.spot, caption: e.caption, at: e.at, posted: e.posted ?? e.at })
 
 type Reply = (body: unknown, status: number, extra?: { [k: string]: string }) => Response
 
@@ -90,6 +90,7 @@ export async function handlePhotos(req: Request, url: URL, d: PhotoDeps): Promis
       spot,
       caption: cleanCaption(url.searchParams.get('caption')),
       at: Math.min(taken, now), // heure de prise : « il y a 3 h » même si envoyée plus tard
+      posted: now,
       reports: 0,
       token: crypto.randomUUID(),
     }
@@ -103,7 +104,8 @@ export async function handlePhotos(req: Request, url: URL, d: PhotoDeps): Promis
     const name = SPOTS.find((s) => s.id === spot)!.short
     const link = `${d.siteUrl}?photo=${entry.id}&del=${entry.token}`
     d.waitUntil(d.notifyOwner(`Nouvelle photo · ${name}`, entry.caption || 'Touche pour la voir ou la supprimer.', link))
-    return d.reply(publicView(entry), 201)
+    // Le jeton n'est renvoyé qu'à l'auteur : il lui permet de supprimer sa photo.
+    return d.reply({ ...publicView(entry), token: entry.token }, 201)
   }
 
   if (!id || !/^[a-z0-9]{6,20}$/.test(id)) return d.reply({ error: 'introuvable' }, 404)

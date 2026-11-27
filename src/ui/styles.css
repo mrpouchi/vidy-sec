@@ -897,6 +897,12 @@ button:focus-visible {
   font-weight: 600;
 }
 
+.viewer-times {
+  font-size: 13px;
+  line-height: 18px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
 .viewer-caption {
   font-size: 15px;
   line-height: 20px;

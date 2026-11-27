@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ago, cleanCaption, isJpeg, isSpotId, PHOTO_MAX_BYTES, validTakenAt } from './photos.ts'
+import { ago, cleanCaption, dayTime, isJpeg, isSpotId, PHOTO_MAX_BYTES, timesLine, validTakenAt } from './photos.ts'
 
 describe('photos', () => {
   it('accepte seulement un vrai JPEG de taille raisonnable', () => {
@@ -36,5 +36,17 @@ describe('photos', () => {
     expect(validTakenAt(now + 3_600_000, now)).toBe(false)
     expect(validTakenAt(now - 8 * 86_400_000, now)).toBe(false)
     expect(validTakenAt(Number.NaN, now)).toBe(false)
+  })
+
+  it('affiche l’heure de prise, et celle de publication si elle est différente', () => {
+    const now = Date.UTC(2026, 10, 28, 17, 30) // 18h30 à Zurich
+    const at15 = Date.UTC(2026, 10, 28, 14, 2) // 15h02
+    expect(dayTime(at15, now)).toBe('à 15h02')
+    expect(dayTime(at15 - 86_400_000, now)).toBe('hier à 15h02')
+    expect(dayTime(at15 - 3 * 86_400_000, now)).toBe('mer. à 15h02')
+    expect(timesLine({ id: 'a', spot: 'bowl', caption: '', at: at15, posted: at15 + 3 * 3_600_000 }, now)).toBe(
+      'Prise à 15h02 · publiée à 18h02',
+    )
+    expect(timesLine({ id: 'a', spot: 'bowl', caption: '', at: at15, posted: at15 + 60_000 }, now)).toBe('Prise à 15h02')
   })
 })
