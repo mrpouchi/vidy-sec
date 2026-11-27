@@ -105,3 +105,14 @@ export async function unsubscribe(): Promise<void> {
   await post('DELETE', { endpoint: sub.endpoint }).catch(() => {}) // le serveur nettoie aussi les abonnements morts
   await sub.unsubscribe()
 }
+
+/** Adresse d'abonnement de cet appareil (pour ne pas se notifier soi-même), ou null. */
+export async function currentEndpoint(): Promise<string | null> {
+  try {
+    if (!(await isSubscribed())) return null
+    const reg = await navigator.serviceWorker.getRegistration(workerUrl())
+    return (await reg?.pushManager.getSubscription())?.endpoint ?? null
+  } catch {
+    return null
+  }
+}

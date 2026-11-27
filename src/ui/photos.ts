@@ -1,7 +1,7 @@
 /** Client du feed de photos (Worker, voir worker/photos.ts). */
 import { PHOTO_MAX_BYTES, PHOTO_MAX_SIDE, type Photo } from '../notify/photos.ts'
 import { exifTakenAt } from '../notify/exif.ts'
-import { PUSH_API } from './push.ts'
+import { PUSH_API, currentEndpoint } from './push.ts'
 
 export const photoUrl = (id: string) => `${PUSH_API}/photos/${id}`
 
@@ -51,7 +51,10 @@ export const myToken = (id: string): string | undefined => readMine()[id]
 
 export async function upload(jpeg: Blob, spot: string, caption: string, taken: number): Promise<Photo> {
   const q = new URLSearchParams({ spot, caption, taken: String(Math.round(taken)) })
-  const res = await fetch(`${PUSH_API}/photos?${q}`, { method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: jpeg })
+  const me = await currentEndpoint() // l'auteur ne reçoit pas la notification de sa propre photo
+  const headers: Record<string, string> = { 'Content-Type': 'image/jpeg' }
+  if (me) headers['X-Push-Endpoint'] = me
+  const res = await fetch(`${PUSH_API}/photos?${q}`, { method: 'POST', headers, body: jpeg })
   if (res.status === 400 && (await res.clone().json().catch(() => ({}))).error === 'heure de prise invalide') throw new Error('heure')
   if (!res.ok) throw new Error(`serveur ${res.status}`)
   const { token, ...photo } = (await res.json()) as Photo & { token?: string }

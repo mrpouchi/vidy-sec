@@ -16,6 +16,7 @@ import { zurichStamp } from '../src/model/time.ts'
 import { fetchForecast, parseForecast } from '../src/model/weather.ts'
 import { VAPID_PUBLIC } from '../src/notify/keys.ts'
 import { bodyFor, planNotification, type NotifyState } from '../src/notify/plan.ts'
+import { followersOf } from '../src/notify/photos.ts'
 import { parseReport } from '../src/notify/reports.ts'
 import { parseSpotRequest, parseSpots, type SpotRequest } from '../src/notify/requests.ts'
 import { parseSubscription, sendPush, type PushSub, type Vapid } from '../src/notify/webpush.ts'
@@ -153,7 +154,7 @@ export default {
       ? {
           'Access-Control-Allow-Origin': origin,
           'Access-Control-Allow-Methods': 'GET, POST, DELETE',
-          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Headers': 'Content-Type, X-Push-Endpoint',
           Vary: 'Origin',
         }
       : {}
@@ -266,6 +267,11 @@ export default {
       isAdmin: isAdmin(req, env),
       ip: req.headers.get('CF-Connecting-IP') ?? 'inconnue',
       notifyOwner: async (title, body, link) => broadcast(env, await owners(env), () => ({ title, body, url: link })),
+      notifyFollowers: async (spot, title, body, link, exceptEndpoint) => {
+        const skip = new Set((await owners(env)).map((o) => o.key)) // le propriétaire a déjà sa version
+        if (exceptEndpoint) skip.add(await subKey(exceptEndpoint)) // pas l'auteur de la photo
+        return broadcast(env, followersOf(await allRecords(env), spot, skip), () => ({ title, body, url: link }))
+      },
       siteUrl: env.SITE_URL,
       waitUntil: (p) => ctx.waitUntil(p),
     })

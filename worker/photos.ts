@@ -11,12 +11,14 @@
  * (les lectures KV sont bon marché, les « list » non).
  */
 import { SPOTS } from '../src/model/spots.ts'
+import { zurichStamp } from '../src/model/time.ts'
 import {
   HIDE_AFTER_REPORTS,
   PHOTO_MAX_BYTES,
   PHOTO_TTL_DAYS,
   cleanCaption,
   isJpeg,
+  followersAwake,
   isSpotId,
   validTakenAt,
   type Photo,
@@ -36,6 +38,7 @@ interface Entry extends Photo {
 }
 
 const TTL = PHOTO_TTL_DAYS * 24 * 3600
+const FOLLOWERS_GAP = 30 * 60 // s
 const FEED = 'feed'
 
 async function readFeed(kv: PhotoKV): Promise<Entry[]> {
@@ -55,6 +58,8 @@ export interface PhotoDeps {
   ip: string
   /** Prévient le propriétaire (notification avec lien de suppression). */
   notifyOwner(title: string, body: string, url: string): Promise<unknown>
+  /** Prévient les abonnés qui suivent ce spot (hors propriétaire et hors auteur). */
+  notifyFollowers(spot: string, title: string, body: string, url: string, exceptEndpoint: string | null): Promise<unknown>
   siteUrl: string
   waitUntil(p: Promise<unknown>): void
 }
@@ -98,11 +103,18 @@ export async function handlePhotos(req: Request, url: URL, d: PhotoDeps): Promis
     const next = [entry, ...feed].sort((a, b) => b.at - a.at).slice(0, 200)
     await d.kv.put(FEED, JSON.stringify(next))
 
-    // Toucher la notification ouvre la photo (avec « Supprimer » pour le propriétaire).
+    // Toucher la notification ouvre la photo (avec « Supprimer » pour le propriétaire seulement).
     const where = SPOTS.find((s) => s.id === spot)!.at
-    const link = `${d.siteUrl}?photo=${entry.id}&del=${entry.token}`
+    const title = `Nouvelle photo partagée ${where}`
     const body = entry.caption ? `« ${entry.caption} » · Viens rider 🤙` : 'Viens rider 🤙'
-    d.waitUntil(d.notifyOwner(`Nouvelle photo partagée ${where}`, body, link))
+    d.waitUntil(d.notifyOwner(title, body, `${d.siteUrl}?photo=${entry.id}&del=${entry.token}`))
+    // Abonnés du spot : en journée seulement, et au plus une notification par spot toutes les 30 min
+    // (plusieurs photos d'affilée = une seule notification).
+    const hour = Number(zurichStamp(new Date(now)).slice(11, 13))
+    if (followersAwake(hour) && !(await d.kv.get(`pn:${spot}`))) {
+      await d.kv.put(`pn:${spot}`, '1', { expirationTtl: FOLLOWERS_GAP })
+      d.waitUntil(d.notifyFollowers(spot, title, body, `${d.siteUrl}?photo=${entry.id}`, req.headers.get('X-Push-Endpoint')))
+    }
     // Le jeton n'est renvoyé qu'à l'auteur : il lui permet de supprimer sa photo.
     return d.reply({ ...publicView(entry), token: entry.token }, 201)
   }

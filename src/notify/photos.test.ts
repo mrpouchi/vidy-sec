@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ago, cleanCaption, dayTime, isJpeg, isSpotId, PHOTO_MAX_BYTES, timesLine, validTakenAt } from './photos.ts'
+import { ago, cleanCaption, dayTime, followersAwake, followersOf, isJpeg, isSpotId, PHOTO_MAX_BYTES, timesLine, validTakenAt } from './photos.ts'
 
 describe('photos', () => {
   it('accepte seulement un vrai JPEG de taille raisonnable', () => {
@@ -48,5 +48,25 @@ describe('photos', () => {
       'Prise à 15h02 · publiée à 18h02',
     )
     expect(timesLine({ id: 'a', spot: 'bowl', caption: '', at: at15, posted: at15 + 60_000 }, now)).toBe('Prise à 15h02')
+  })
+
+  it('prévient ceux qui suivent le spot, sauf le propriétaire et l’auteur', () => {
+    const subs = [
+      { key: 'a', rec: {} }, // tous les spots (jamais touché à « Mes spots »)
+      { key: 'b', rec: { spots: ['bowl'] } },
+      { key: 'c', rec: { spots: ['route', 'leysin'] } },
+      { key: 'owner', rec: { spots: ['bowl'] } },
+      { key: 'author', rec: {} },
+    ]
+    expect(followersOf(subs, 'bowl', new Set(['owner', 'author'])).map((s) => s.key)).toEqual(['a', 'b'])
+    expect(followersOf(subs, 'leysin', new Set()).map((s) => s.key)).toEqual(['a', 'c', 'author'])
+  })
+
+  it('seulement en journée (8h–21h)', () => {
+    expect(followersAwake(7)).toBe(false)
+    expect(followersAwake(8)).toBe(true)
+    expect(followersAwake(20)).toBe(true)
+    expect(followersAwake(21)).toBe(false)
+    expect(followersAwake(0)).toBe(false)
   })
 })

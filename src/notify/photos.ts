@@ -62,3 +62,14 @@ export function timesLine(p: Photo, now = Date.now()): string {
   const taken = `Prise ${dayTime(p.at, now)}`
   return p.posted && p.posted - p.at >= 10 * 60_000 ? `${taken} · publiée ${dayTime(p.posted, now)}` : taken
 }
+
+export const FOLLOWERS_FROM = 8 // h, heure de Zurich
+export const FOLLOWERS_UNTIL = 21
+
+/** Abonnés à prévenir pour une photo : ceux qui suivent le spot, sauf ceux de `skip` (propriétaire, auteur). */
+export function followersOf<T extends { key: string; rec: { spots?: string[] } }>(all: T[], spot: string, skip: Set<string>): T[] {
+  return all.filter(({ key, rec }) => !skip.has(key) && (!rec.spots || rec.spots.includes(spot)))
+}
+
+/** Notifications « nouvelle photo » aux abonnés : en journée seulement. */
+export const followersAwake = (hour: number) => hour >= FOLLOWERS_FROM && hour < FOLLOWERS_UNTIL
