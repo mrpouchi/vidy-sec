@@ -505,3 +505,56 @@ button:focus-visible {
   opacity: 0.4;
   cursor: default;
 }
+
+/* Invitation à installer */
+
+.install {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-right: 4px;
+}
+
+.install-icon {
+  flex: none;
+  border-radius: 9px;
+  box-shadow: 0 0 0 0.5px var(--hair);
+}
+
+.install-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.install-title {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+}
+
+.install-steps {
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+
+.share-icon {
+  vertical-align: -3px;
+  color: var(--accent);
+}
+
+.install-btn {
+  min-height: 36px;
+  margin-top: 4px;
+}
+
+.install-close {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  margin-top: -6px;
+  display: grid;
+  place-items: center;
+  color: var(--text-2);
+}

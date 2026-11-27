@@ -5,6 +5,7 @@ import { buildView, type SpotView } from '../model/summary.ts'
 import { zurichStamp } from '../model/time.ts'
 import { fetchForecast, parseForecast } from '../model/weather.ts'
 import { DayList } from './DayList.tsx'
+import { InstallHint } from './InstallHint.tsx'
 import { isSubscribed, pushSupport, subscribe, unsubscribe } from './push.ts'
 import { SkeletonCard, SpotCard } from './SpotCard.tsx'
 import { readCache, readFeedback, writeCache, writeFeedback, type Cached } from './storage.ts'
@@ -145,6 +146,8 @@ export function App() {
           </button>
         </div>
       </header>
+
+      <InstallHint />
 
       {(stale || (failed && data)) && (
         <p class="notice">{failed ? 'Pas de connexion · ' : ''}Données de {updated}, peut-être dépassées.</p>
