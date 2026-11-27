@@ -1,0 +1,43 @@
+name: Notification
+
+on:
+  # Toutes les heures à hh:07 (UTC). Les règles horaires (8h, 21h) sont gérées en heure de Zurich dans le script.
+  schedule:
+    - cron: '7 * * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Envoyer même si rien n'a changé
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: notify
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsx scripts/notify.ts ${{ inputs.force && '--force' || '' }}
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          SITE_URL: https://${{ github.repository_owner }}.github.io/vidy-sec/
+      - name: Sauvegarder l'état
+        run: |
+          if [ -n "$(git status --porcelain state/)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add state/
+            git commit -m "chore: état des notifications [skip ci]"
+            git push
+          fi

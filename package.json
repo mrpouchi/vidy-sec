@@ -1,0 +1,26 @@
+{
+  "name": "vidy-sec",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "notify": "tsx scripts/notify.ts",
+    "icon": "node scripts/icon.mjs"
+  },
+  "dependencies": {
+    "preact": "^10.29.8"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.6",
+    "@resvg/resvg-js": "^2.6.2",
+    "@types/node": "^22.20.7",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.6",
+    "vitest": "^3.2.7"
+  }
+}
