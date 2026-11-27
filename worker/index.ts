@@ -158,7 +158,9 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors })
 
     if (url.pathname === '/subscribe' && req.method === 'POST') {
-      const body = (await readJson(req)) as { subscription?: unknown; spots?: unknown; endpoint?: unknown } | null
+      const body = (await readJson(req)) as
+        | { subscription?: unknown; spots?: unknown; endpoint?: unknown; previous?: unknown }
+        | null
       // Accepte { subscription, spots } ou l'abonnement seul (anciennes versions de l'app).
       const sub = parseSubscription(body?.endpoint ? body : body?.subscription)
       if (!sub) return json({ error: 'abonnement invalide' }, 400, cors)
@@ -168,6 +170,13 @@ export default {
       const isNew = (await env.SUBS.get(key)) === null
       const rec: Record = { sub, ...(spots ? { spots } : {}) }
       await env.SUBS.put(key, JSON.stringify(rec))
+      // L'appareil s'est réabonné (nouvelle adresse) : on retire l'ancienne et on garde son rôle « owner ».
+      if (typeof body?.previous === 'string' && body.previous !== sub.endpoint) {
+        const prev = await subKey(body.previous)
+        if (await env.SUBS.get(prev)) await env.SUBS.delete(prev)
+        const list = JSON.parse((await env.SUBS.get('owners')) ?? '[]') as string[]
+        if (list.includes(prev)) await env.SUBS.put('owners', JSON.stringify([...new Set(list.map((k) => (k === prev ? key : k)))]))
+      }
       if (isNew) {
         const welcome = { title: 'Spot Checker', body: 'Notifications activées. Prochain message demain vers 8h.', url: env.SITE_URL }
         ctx.waitUntil(sendPush(sub, JSON.stringify(welcome), vapid(env)).catch(() => 0))

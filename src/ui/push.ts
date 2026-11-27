@@ -17,6 +17,28 @@ export function pushSupport(): PushSupport {
 
 const workerUrl = () => `${import.meta.env.BASE_URL}sw.js`
 
+// Dernière adresse d'abonnement connue : si iOS en donne une nouvelle, le serveur fait le lien.
+const LAST_ENDPOINT = 'vidy:push-endpoint:v1'
+const lastEndpoint = () => {
+  try {
+    return localStorage.getItem(LAST_ENDPOINT) ?? undefined
+  } catch {
+    return undefined
+  }
+}
+const rememberEndpoint = (e: string) => {
+  try {
+    localStorage.setItem(LAST_ENDPOINT, e)
+  } catch {
+    /* navigation privée */
+  }
+}
+
+async function register(sub: PushSubscription, spots: string[]): Promise<void> {
+  await post('POST', { subscription: sub.toJSON(), spots, previous: lastEndpoint() })
+  rememberEndpoint(sub.endpoint)
+}
+
 export function registerWorker(): void {
   if (!('serviceWorker' in navigator)) return
   navigator.serviceWorker.register(workerUrl()).catch(() => {})
@@ -46,7 +68,7 @@ export async function subscribe(spots: string[]): Promise<void> {
   const sub =
     (await reg.pushManager.getSubscription()) ??
     (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: fromB64u(VAPID_PUBLIC) }))
-  await post('POST', { subscription: sub.toJSON(), spots })
+  await register(sub, spots)
 }
 
 /** Met à jour les spots notifiés si l'appareil est abonné. */
@@ -54,7 +76,15 @@ export async function syncSpots(spots: string[]): Promise<void> {
   if (!(await isSubscribed())) return
   const reg = await navigator.serviceWorker.getRegistration(workerUrl())
   const sub = await reg?.pushManager.getSubscription()
-  if (sub) await post('POST', { subscription: sub.toJSON(), spots })
+  if (sub) await register(sub, spots)
+}
+
+/** Au lancement : si iOS a changé l'adresse d'abonnement en silence, on prévient le serveur. */
+export async function refreshSubscription(spots: string[]): Promise<void> {
+  if (!(await isSubscribed())) return
+  const reg = await navigator.serviceWorker.getRegistration(workerUrl())
+  const sub = await reg?.pushManager.getSubscription()
+  if (sub && sub.endpoint !== lastEndpoint()) await register(sub, spots)
 }
 
 /** Envoie une demande de nouveau spot. */

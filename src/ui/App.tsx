@@ -6,8 +6,8 @@ import { zurichStamp } from '../model/time.ts'
 import { fetchForecast, parseForecast } from '../model/weather.ts'
 import { DayList } from './DayList.tsx'
 import { InstallHint } from './InstallHint.tsx'
-import { PhotoFeed } from './PhotoFeed.tsx'
-import { isSubscribed, pushSupport, subscribe, syncSpots, unsubscribe } from './push.ts'
+import { Compose, Gallery, usePhotos, type Draft, type GalleryState } from './Photos.tsx'
+import { isSubscribed, pushSupport, refreshSubscription, subscribe, syncSpots, unsubscribe } from './push.ts'
 import { SkeletonCard, SpotCard } from './SpotCard.tsx'
 import { SpotsSheet } from './SpotsSheet.tsx'
 import { readCache, readFeedback, readSpots, writeCache, writeFeedback, writeSpots, type Cached } from './storage.ts'
@@ -35,6 +35,11 @@ export function App() {
   const [toast, showToast] = useToast()
   const [spots, setSpots] = useState(readSpots)
   const [sheet, setSheet] = useState(false)
+  const photos = usePhotos()
+  const [gallery, setGallery] = useState<GalleryState | null>(null)
+  const [draft, setDraft] = useState<Draft | null>(null)
+  const picker = useRef<HTMLInputElement>(null)
+  const pickFor = useRef('')
   const dataRef = useRef(data)
   dataRef.current = data
 
@@ -107,6 +112,7 @@ export function App() {
   const [pushBusy, setPushBusy] = useState(false)
   useEffect(() => {
     void isSubscribed().then(setPushOn, () => {})
+    void refreshSubscription(spots).catch(() => {})
   }, [])
   const togglePush = async () => {
     setPushBusy(true)
@@ -133,6 +139,33 @@ export function App() {
     // Les notifications suivent le choix ; en cas d'échec, l'affichage local reste à jour.
     void syncSpots(ids).catch(() => showToast('Notifications non mises à jour'))
   }
+
+  const openPicker = (spot: string) => {
+    pickFor.current = spot
+    picker.current?.click()
+  }
+  const onPicked = (e: Event) => {
+    const el = e.currentTarget as HTMLInputElement
+    const file = el.files?.[0]
+    el.value = ''
+    if (file) setDraft({ file, preview: URL.createObjectURL(file), spot: pickFor.current })
+  }
+  const closeDraft = () => {
+    if (draft) URL.revokeObjectURL(draft.preview)
+    setDraft(null)
+  }
+  const photosOf = (spot: string) => (photos.feed ?? []).filter((p) => p.spot === spot)
+
+  // Lien de modération reçu en notification : ?photo=<id>&del=<token>
+  useEffect(() => {
+    if (!photos.feed) return
+    const q = new URLSearchParams(location.search)
+    const id = q.get('photo')
+    if (!id) return
+    history.replaceState(null, '', location.pathname)
+    const photo = photos.feed.find((p) => p.id === id) ?? { id, spot: '', caption: '', at: 0 } // masquée : absente du feed
+    setGallery({ photos: [photo], index: 0, del: q.get('del') ?? undefined })
+  }, [photos.feed !== null])
 
   const stale = data && Date.now() - data.at > STALE_AFTER
   const updated = data ? zurichStamp(new Date(data.at)).slice(11) : null
@@ -185,7 +218,16 @@ export function App() {
           </button>
         </section>
       ) : views ? (
-        views.map((v) => <SpotCard key={v.spot.id} view={v} onReport={(said) => report(v, said)} />)
+        views.map((v) => (
+          <SpotCard
+            key={v.spot.id}
+            view={v}
+            photos={photosOf(v.spot.id)}
+            onReport={(said) => report(v, said)}
+            onOpenPhoto={(index) => setGallery({ photos: photosOf(v.spot.id), index })}
+            onAddPhoto={() => openPicker(v.spot.id)}
+          />
+        ))
       ) : failed ? (
         <section class="card error">
           <p>Impossible de charger la météo.</p>
@@ -196,8 +238,6 @@ export function App() {
       ) : (
         spots.map((id) => <SkeletonCard key={id} />)
       )}
-
-      {spots.length > 0 && <PhotoFeed spots={spots} toast={showToast} />}
 
       {views && views.length > 0 && <DayList views={views} />}
 
@@ -219,6 +259,31 @@ export function App() {
         )}
       </footer>
 
+      <input ref={picker} type="file" accept="image/*" hidden onChange={onPicked} />
+      <Compose
+        draft={draft}
+        onClose={closeDraft}
+        onDone={(p) => {
+          photos.add(p)
+          closeDraft()
+          showToast('Photo publiée')
+        }}
+        toast={showToast}
+      />
+      <Gallery
+        state={gallery}
+        onClose={() => setGallery(null)}
+        onReported={() => {
+          setGallery(null)
+          showToast('Merci, c’est signalé')
+        }}
+        onDeleted={(id) => {
+          photos.drop(id)
+          setGallery(null)
+          showToast('Photo supprimée')
+        }}
+        toast={showToast}
+      />
       <SpotsSheet open={sheet} selected={spots} onChange={changeSpots} onClose={() => setSheet(false)} />
 
       <div class={`toast${toast.on ? ' on' : ''}`} role="status" aria-live="polite">
