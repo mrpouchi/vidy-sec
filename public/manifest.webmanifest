@@ -1,6 +1,6 @@
 {
-  "name": "Vidy Sec",
-  "short_name": "Vidy Sec",
+  "name": "Spot Checker",
+  "short_name": "Spot Checker",
   "description": "Quand est-ce que le bowl de Vidy et la route du lac sont secs ?",
   "lang": "fr",
   "start_url": ".",

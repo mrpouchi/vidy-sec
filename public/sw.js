@@ -10,7 +10,7 @@ self.addEventListener('push', (e) => {
     data = { body: e.data ? e.data.text() : '' }
   }
   e.waitUntil(
-    self.registration.showNotification(data.title || 'Vidy Sec', {
+    self.registration.showNotification(data.title || 'Spot Checker', {
       body: data.body || '',
       icon: 'apple-touch-icon.png',
       data: { url: data.url || self.registration.scope },

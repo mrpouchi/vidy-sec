@@ -5,7 +5,7 @@ import { buildView, type SpotView } from '../model/summary.ts'
 import { zurichStamp } from '../model/time.ts'
 import { fetchForecast, parseForecast } from '../model/weather.ts'
 import { DayList } from './DayList.tsx'
-import { pushSupport, subscribe } from './push.ts'
+import { isSubscribed, pushSupport, subscribe, unsubscribe } from './push.ts'
 import { SkeletonCard, SpotCard } from './SpotCard.tsx'
 import { readCache, readFeedback, writeCache, writeFeedback, type Cached } from './storage.ts'
 
@@ -97,21 +97,28 @@ export function App() {
     }
   }
 
-  const [pushCode, setPushCode] = useState<string | null>(null)
   const support = pushSupport()
-  const enablePush = async () => {
+  const [pushOn, setPushOn] = useState(false)
+  const [pushBusy, setPushBusy] = useState(false)
+  useEffect(() => {
+    void isSubscribed().then(setPushOn, () => {})
+  }, [])
+  const togglePush = async () => {
+    setPushBusy(true)
     try {
-      setPushCode(await subscribe())
+      if (pushOn) {
+        await unsubscribe()
+        setPushOn(false)
+        showToast('Notifications désactivées')
+      } else {
+        await subscribe()
+        setPushOn(true)
+        showToast('Notifications activées')
+      }
     } catch (e) {
-      showToast(e instanceof Error && e.message === 'refusé' ? 'Notifications refusées' : 'Impossible d’activer')
-    }
-  }
-  const copyPush = async () => {
-    try {
-      await navigator.clipboard.writeText(pushCode ?? '')
-      showToast('Code copié')
-    } catch {
-      showToast('Impossible de copier')
+      showToast(e instanceof Error && e.message === 'refusé' ? 'Notifications refusées' : 'Impossible pour l’instant')
+    } finally {
+      setPushBusy(false)
     }
   }
 
@@ -121,7 +128,7 @@ export function App() {
   return (
     <main class="app">
       <header class="top">
-        <h1>Vidy Sec</h1>
+        <h1>Spot Checker</h1>
         <div class="top-meta">
           {updated && <span>Mis à jour {updated}</span>}
           <button type="button" class="icon-btn" aria-label="Actualiser" onClick={() => void refresh()} disabled={loading}>
@@ -161,27 +168,17 @@ export function App() {
 
       {views && <DayList views={views} />}
 
-      {pushCode && (
-        <section class="card push">
-          <p>Notifications activées. Copie ce code et envoie-le à Claude pour finir.</p>
-          <textarea readOnly rows={3} value={pushCode} onFocus={(e) => e.currentTarget.select()} />
-          <button type="button" class="text-btn" onClick={() => void copyPush()}>
-            Copier le code
-          </button>
-        </section>
-      )}
-
       <footer class="foot">
         <p>Estimation : vérifie toujours sur place.</p>
         <p>
           Météo MeteoSwiss via <a href="https://open-meteo.com/">Open-Meteo</a>
         </p>
-        {support === 'ok' && !pushCode && (
-          <button type="button" class="text-btn" onClick={() => void enablePush()}>
-            Activer les notifications
+        {support === 'ok' && (
+          <button type="button" class="text-btn" onClick={() => void togglePush()} disabled={pushBusy}>
+            {pushOn ? 'Désactiver les notifications' : 'Activer les notifications'}
           </button>
         )}
-        {support === 'install' && <p>Notifications : ajoute l’app à l’écran d’accueil d’abord.</p>}
+        {support === 'install' && <p>Notifications : Partager → « Sur l’écran d’accueil », puis ouvre l’app.</p>}
         {feedback.log.length > 0 && (
           <button type="button" class="text-btn" onClick={() => void copyReports()}>
             Copier mes retours ({feedback.log.length})

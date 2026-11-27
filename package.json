@@ -1,5 +1,5 @@
 {
-  "name": "vidy-sec",
+  "name": "spot-checker",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -8,8 +8,9 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "notify": "tsx scripts/notify.ts",
-    "icon": "node scripts/icon.mjs"
+    "icon": "node scripts/icon.mjs",
+    "worker:deploy": "wrangler deploy",
+    "worker:dev": "wrangler dev"
   },
   "dependencies": {
     "preact": "^10.29.8"
@@ -18,11 +19,11 @@
     "@preact/preset-vite": "^2.10.6",
     "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^22.20.7",
-    "@types/web-push": "^3.6.4",
+    "http_ece": "^1.2.0",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vite": "^6.4.6",
     "vitest": "^3.2.7",
-    "web-push": "^3.6.7"
+    "wrangler": "^4.20.0"
   }
 }

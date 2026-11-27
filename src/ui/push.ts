@@ -1,7 +1,9 @@
 /** Web Push : abonnement depuis l'app installée sur l'écran d'accueil (iOS ≥ 16.4). */
+import { VAPID_PUBLIC } from '../notify/keys.ts'
+import { fromB64u } from '../notify/webpush.ts'
 
-export const VAPID_PUBLIC =
-  'BJaU-TwH4XmzRzr3G_us6rPP7hu04YYo3bhdIcrokHRktEWF0M_839ccgza13Khgb9Mydml0w6Wz5gk826D98mc'
+/** Worker Cloudflare qui garde les abonnements et envoie les notifications (worker/index.ts). */
+export const PUSH_API = 'https://spot-checker.spotchecker.workers.dev'
 
 export type PushSupport = 'ok' | 'install' | 'none'
 
@@ -13,25 +15,44 @@ export function pushSupport(): PushSupport {
   return ios ? 'install' : 'none'
 }
 
+const workerUrl = () => `${import.meta.env.BASE_URL}sw.js`
+
 export function registerWorker(): void {
   if (!('serviceWorker' in navigator)) return
-  navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {})
+  navigator.serviceWorker.register(workerUrl()).catch(() => {})
 }
 
-function keyBytes(b64: string): Uint8Array<ArrayBuffer> {
-  const pad = '='.repeat((4 - (b64.length % 4)) % 4)
-  const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'))
-  return Uint8Array.from(raw, (c) => c.charCodeAt(0))
+export async function isSubscribed(): Promise<boolean> {
+  if (pushSupport() !== 'ok' || Notification.permission !== 'granted') return false
+  const reg = await navigator.serviceWorker.getRegistration(workerUrl())
+  return Boolean(await reg?.pushManager.getSubscription())
 }
 
-/** Demande la permission et renvoie l'abonnement (JSON) à copier dans le secret GitHub. */
-export async function subscribe(): Promise<string> {
+async function post(method: 'POST' | 'DELETE', body: unknown): Promise<void> {
+  const res = await fetch(`${PUSH_API}/subscribe`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`serveur ${res.status}`)
+}
+
+/** Demande la permission, s'abonne et enregistre l'abonnement sur le serveur. */
+export async function subscribe(): Promise<void> {
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') throw new Error('refusé')
-  const reg = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
+  const reg = await navigator.serviceWorker.register(workerUrl())
   await navigator.serviceWorker.ready
   const sub =
     (await reg.pushManager.getSubscription()) ??
-    (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(VAPID_PUBLIC) }))
-  return JSON.stringify(sub)
+    (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: fromB64u(VAPID_PUBLIC) }))
+  await post('POST', sub.toJSON())
+}
+
+export async function unsubscribe(): Promise<void> {
+  const reg = await navigator.serviceWorker.getRegistration(workerUrl())
+  const sub = await reg?.pushManager.getSubscription()
+  if (!sub) return
+  await post('DELETE', { endpoint: sub.endpoint }).catch(() => {}) // le serveur nettoie aussi les abonnements morts
+  await sub.unsubscribe()
 }

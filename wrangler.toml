@@ -1,0 +1,18 @@
+name = "spot-checker"
+main = "worker/index.ts"
+compatibility_date = "2025-06-01"
+workers_dev = true
+
+[vars]
+SITE_URL = "https://mrpouchi.github.io/spot-checker/"
+
+[[kv_namespaces]]
+binding = "SUBS"
+id = "2096078c965f409c9926290c2a87847c"
+
+# Toutes les heures pile (UTC) ; la logique raisonne en heure de Zurich.
+[triggers]
+crons = ["0 * * * *"]
+
+[observability]
+enabled = true

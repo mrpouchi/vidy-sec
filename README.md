@@ -1,9 +1,9 @@
-# Vidy Sec
+# Spot Checker
 
 Est-ce que le **bowl de Vidy** et la **route du lac Ouchy → UNIL** sont secs ? Et sinon, quand ?
 
-Une page pensée pour l'iPhone (ajoutable à l'écran d'accueil), plus une notification ntfy chaque
-matin, et une mise à jour seulement si la prévision change dans la journée.
+Une app web pensée pour l'iPhone (à ajouter à l'écran d'accueil), avec une notification chaque
+matin vers 8h, et une mise à jour seulement si la prévision change dans la journée.
 
 ## Comment ça estime
 
@@ -28,14 +28,23 @@ retours » (en bas de page) exporte le journal pour recalibrer les valeurs par d
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173/vidy-sec/
+npm run dev        # http://localhost:5173/spot-checker/
 npm test
-npm run notify -- --dry-run   # affiche la notification du moment sans l'envoyer
 ```
 
 ## Notifications
 
-`.github/workflows/notify.yml` tourne toutes les heures. Il a besoin du secret `NTFY_TOPIC`.
-L'état (dernier message envoyé) est commité dans `state/notify.json` ; ces commits gardent aussi le
-repo actif, sinon GitHub désactive les tâches planifiées après 60 jours sans activité.
-Pour forcer un envoi : *Actions → Notification → Run workflow → force*.
+Web Push standard, sans service tiers : sur iPhone (iOS ≥ 16.4), ouvrir l'app depuis l'écran
+d'accueil et appuyer sur « Activer les notifications ».
+
+Un Worker Cloudflare ([`worker/index.ts`](worker/index.ts)) garde les abonnements (KV) et tourne
+toutes les heures. La décision (message du jour, mises à jour, max 3 / jour) est dans
+[`src/notify/plan.ts`](src/notify/plan.ts) ; le chiffrement Web Push (RFC 8291 / VAPID) est en
+WebCrypto pur dans [`src/notify/webpush.ts`](src/notify/webpush.ts). Seule l'adresse de
+notification de l'appareil est stockée : ni nom, ni e-mail.
+
+```bash
+npm run worker:deploy                      # déployer le Worker
+npx wrangler secret put VAPID_PRIVATE      # clé privée VAPID (une fois)
+npx wrangler secret put ADMIN_TOKEN        # pour POST /run (envoi forcé de test)
+```
