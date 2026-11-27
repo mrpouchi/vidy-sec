@@ -81,9 +81,6 @@ export async function handlePhotos(req: Request, url: URL, d: PhotoDeps): Promis
     if (!validTakenAt(taken, now)) return d.reply({ error: 'heure de prise invalide' }, 400)
     const bytes = new Uint8Array(await req.arrayBuffer())
     if (!isJpeg(bytes)) return d.reply({ error: 'photo invalide' }, 400)
-    // Anti-spam : une photo par minute et par adresse IP (60 s = durée minimale en KV).
-    if (await d.kv.get(`rlp:${d.ip}`)) return d.reply({ error: 'trop de photos' }, 429)
-    await d.kv.put(`rlp:${d.ip}`, '1', { expirationTtl: 60 })
 
     const entry: Entry = {
       id: `${Date.now().toString(36)}${crypto.randomUUID().slice(0, 6)}`,

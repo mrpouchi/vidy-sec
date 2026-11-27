@@ -210,7 +210,7 @@ export function Compose(props: { draft: Draft | null; onClose(): void; onDone(p:
     } catch (err) {
       const m = err instanceof Error ? err.message : ''
       props.toast(
-        m === 'trop' ? 'Une photo par minute' : m === 'trop lourde' ? 'Photo trop lourde' : m === 'heure' ? 'Heure de prise invalide' : 'Envoi impossible',
+        m === 'trop lourde' ? 'Photo trop lourde' : m === 'heure' ? 'Heure de prise invalide' : 'Envoi impossible',
       )
     } finally {
       setBusy(false)

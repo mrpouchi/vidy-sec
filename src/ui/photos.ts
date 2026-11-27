@@ -52,7 +52,6 @@ export const myToken = (id: string): string | undefined => readMine()[id]
 export async function upload(jpeg: Blob, spot: string, caption: string, taken: number): Promise<Photo> {
   const q = new URLSearchParams({ spot, caption, taken: String(Math.round(taken)) })
   const res = await fetch(`${PUSH_API}/photos?${q}`, { method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: jpeg })
-  if (res.status === 429) throw new Error('trop')
   if (res.status === 400 && (await res.clone().json().catch(() => ({}))).error === 'heure de prise invalide') throw new Error('heure')
   if (!res.ok) throw new Error(`serveur ${res.status}`)
   const { token, ...photo } = (await res.json()) as Photo & { token?: string }
