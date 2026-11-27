@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { SPOTS } from '../model/spots.ts'
 import { CAPTION_MAX, PHOTO_TTL_DAYS, ago, validTakenAt, type Photo } from '../notify/photos.ts'
-import { closeOnBackdrop, useModal } from './modal.ts'
+import { closeOnBackdrop, useModal, useSwipeDown } from './modal.ts'
 import { compress, fetchFeed, photoUrl, remove, report, upload } from './photos.ts'
 
 const spotName = (id: string) => SPOTS.find((s) => s.id === id)?.name ?? ''
@@ -72,7 +72,9 @@ export function Gallery(props: {
   const { state, onClose } = props
   const dialog = useModal(state !== null)
   const track = useRef<HTMLDivElement>(null)
+  const body = useRef<HTMLDivElement>(null)
   const [index, setIndex] = useState(0)
+  useSwipeDown(body, onClose, { fade: dialog, active: state !== null })
   const [busy, setBusy] = useState(false)
 
   // Ouvre directement sur la photo touchée.
@@ -107,7 +109,7 @@ export function Gallery(props: {
   return (
     <dialog ref={dialog} class="viewer" tabIndex={-1} aria-label="Photos du spot" onClose={onClose} onClick={(e) => e.target === dialog.current && onClose()}>
       {state && (
-        <>
+        <div ref={body} class="viewer-body">
           <div class="viewer-top">
             <span>{photos.length > 1 ? `${index + 1} / ${photos.length}` : ''}</span>
             <button type="button" class="text-btn" onClick={onClose}>
@@ -142,7 +144,7 @@ export function Gallery(props: {
               )}
             </div>
           )}
-        </>
+        </div>
       )}
     </dialog>
   )
@@ -168,6 +170,7 @@ const fromLocalInput = (v: string) => new Date(v).getTime()
 export function Compose(props: { draft: Draft | null; onClose(): void; onDone(p: Photo): void; toast(msg: string): void }) {
   const { draft, onClose } = props
   const dialog = useModal(draft !== null)
+  useSwipeDown(dialog, onClose, { active: draft !== null })
   const [caption, setCaption] = useState('')
   const [when, setWhen] = useState('')
   const [busy, setBusy] = useState(false)
@@ -202,6 +205,7 @@ export function Compose(props: { draft: Draft | null; onClose(): void; onDone(p:
   return (
     <dialog ref={dialog} class="sheet" tabIndex={-1} aria-labelledby="compose-title" onClose={onClose} onClick={(e) => closeOnBackdrop(e, onClose)}>
       <form onSubmit={(e) => void publish(e)}>
+        <div class="grabber" aria-hidden="true" />
         <div class="sheet-head">
           <button type="button" class="text-btn muted" onClick={onClose}>
             Annuler

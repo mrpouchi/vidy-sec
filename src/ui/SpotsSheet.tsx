@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { SPOTS } from '../model/spots.ts'
 import { REQUEST_LIMITS } from '../notify/requests.ts'
-import { closeOnBackdrop, useModal } from './modal.ts'
+import { closeOnBackdrop, useModal, useSwipeDown } from './modal.ts'
 import { requestSpot } from './push.ts'
 
 interface Props {
@@ -16,6 +16,7 @@ type AskState = 'closed' | 'form' | 'sending' | 'sent'
 /** Feuille « Mes spots » : afficher / masquer chaque spot, et proposer un nouveau spot. */
 export function SpotsSheet({ open, selected, onChange, onClose }: Props) {
   const dialog = useModal(open)
+  useSwipeDown(dialog, onClose, { active: open })
   const [ask, setAsk] = useState<AskState>('closed')
   const [error, setError] = useState('')
   const [form, setForm] = useState({ name: '', place: '', note: '' })
@@ -58,6 +59,7 @@ export function SpotsSheet({ open, selected, onChange, onClose }: Props) {
       onClose={onClose}
       onClick={(e) => closeOnBackdrop(e, onClose)}
     >
+      <div class="grabber" aria-hidden="true" />
       <div class="sheet-head">
         <h2 id="sheet-title">Mes spots</h2>
         <button type="button" class="text-btn" onClick={onClose}>

@@ -626,6 +626,14 @@ button:focus-visible {
   }
 }
 
+.grabber {
+  width: 36px;
+  height: 5px;
+  margin: 0 auto 2px;
+  border-radius: 3px;
+  background: var(--hair);
+}
+
 .sheet-head {
   display: flex;
   align-items: center;
@@ -847,7 +855,15 @@ button:focus-visible {
 }
 
 .viewer::backdrop {
-  background: #000;
+  background: transparent; /* le fond noir est sur la fenêtre : il s'éclaircit quand on la tire vers le bas */
+}
+
+.viewer-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
 }
 
 .viewer-top,
@@ -916,6 +932,7 @@ button:focus-visible {
 .gallery {
   flex: 1;
   min-height: 0;
+  touch-action: pan-x; /* le vertical sert à fermer */
   display: flex;
   overflow-x: auto;
   overflow-y: hidden;
