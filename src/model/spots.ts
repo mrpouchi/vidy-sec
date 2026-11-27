@@ -21,7 +21,7 @@ export interface Spot {
 }
 
 export const SPOTS: readonly Spot[] = [
-  { id: 'bowl', kind: 'bowl', name: 'Bowl de Vidy', short: 'Bowl', lat: 46.517, lon: 6.595, open: 8, close: 22, lit: true, about: 'Bowl · éclairé jusqu’à 22h', at: 'au bowl de Vidy' },
+  { id: 'bowl', kind: 'bowl', name: 'Bowl de Vidy', short: 'Bowl', lat: 46.517, lon: 6.595, open: 8, close: 20, lit: true, about: 'Bowl · éclairé jusqu’à 20h', at: 'au bowl de Vidy' },
   // Point central du trajet Ouchy (46.507, 6.627) → UNIL Dorigny (46.521, 6.578).
   { id: 'route', kind: 'route', name: 'Route du lac · Ouchy → UNIL', short: 'Route', lat: 46.514, lon: 6.603, open: 0, close: 24, lit: false, about: 'Bord du lac · de jour', at: 'sur la route du lac' },
   // Derrière la patinoire, ~1260 m (OpenStreetMap : leisure=track, cycling=pump_track, surface=asphalt).
@@ -41,7 +41,7 @@ export const SPOTS: readonly Spot[] = [
   },
 ]
 
-/** Heure où l'on peut rider ce spot : ouvert, et de jour ou éclairé (bowl : 8h–22h, éclairé). */
+/** Heure où l'on peut rider ce spot : ouvert, et de jour ou éclairé (bowl : 8h–20h, éclairé). */
 export function usable(spot: Spot, h: { time: string; isDay: boolean }): boolean {
   const hour = Number(h.time.slice(11, 13))
   return hour >= spot.open && hour <= spot.close && (h.isDay || spot.lit)

@@ -150,10 +150,10 @@ describe('verdicts', () => {
     expect(changed(morning, afternoon)).toBe(false)
   })
 
-  it('le bowl éclairé se ride jusqu’à 22h, la route seulement de jour', () => {
+  it('le bowl éclairé se ride jusqu’à 20h, la route seulement de jour', () => {
     const w = weather(NOVEMBER)
     const stamp = `${day(D)}T08:30`
-    expect(bestWindow(buildView(bowl, w, stamp), day(D))).toMatchObject({ start: at(D, 8), end: at(D, 22) })
+    expect(bestWindow(buildView(bowl, w, stamp), day(D))).toMatchObject({ start: at(D, 8), end: at(D, 20) })
     expect(bestWindow(buildView(route, w, stamp), day(D))?.end).toBe(at(D, 17))
     // Après le coucher du soleil, le bowl a encore un créneau ce soir.
     expect(todayLine(buildView(bowl, w, `${day(D)}T18:30`)).text).toMatch(/^Bowl 🟢 sec/)
