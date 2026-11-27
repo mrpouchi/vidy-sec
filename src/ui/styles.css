@@ -243,13 +243,20 @@ button:focus-visible {
   color: var(--text);
 }
 
-.strip-area {
-  position: relative;
-  margin-top: 8px;
+.strip-hit {
+  position: relative; /* au-dessus du titre « Prochaines 48 h » pour la marge du haut */
+  /* Marge tactile invisible de 16 px au-dessus et en dessous, sans changer la mise en page. */
+  margin: -8px 0 -16px;
+  padding: 16px 0 16px;
   touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
   cursor: crosshair;
+}
+
+.strip-area {
+  position: relative;
 }
 
 .strip-rain,
