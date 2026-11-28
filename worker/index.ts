@@ -20,7 +20,7 @@ import { VAPID_PUBLIC } from '../src/notify/keys.ts'
 import { bodyFor, planNotification, type NotifyState } from '../src/notify/plan.ts'
 import { followersOf } from '../src/notify/photos.ts'
 import { parseReport } from '../src/notify/reports.ts'
-import { parsePing, pingKey, summarize } from '../src/notify/stats.ts'
+import { newUserMessage, parsePing, pingKey, summarize } from '../src/notify/stats.ts'
 import { parseSpotRequest, parseSpots, type SpotRequest } from '../src/notify/requests.ts'
 import { parseSubscription, sendPush, type PushSub, type Vapid } from '../src/notify/webpush.ts'
 import { handlePhotos } from './photos.ts'
@@ -247,6 +247,14 @@ export default {
       const key = pingKey(zurichStamp().slice(0, 10), ping.mode, ping.id)
       // Une écriture par appareil et par jour au plus (l'app ne signale qu'une fois par jour).
       if (!(await env.SUBS.get(key))) await env.SUBS.put(key, '1', { expirationTtl: 90 * 86_400 })
+      // Premier signal de cet appareil dans ce mode → nouveau visiteur / nouvelle installation : notif au propriétaire.
+      const dev = `dev:${ping.mode}:${ping.id}`
+      if (!(await env.SUBS.get(dev))) {
+        await env.SUBS.put(dev, '1')
+        const total = Number((await env.SUBS.get(`devcount:${ping.mode}`)) ?? '0') + 1
+        await env.SUBS.put(`devcount:${ping.mode}`, String(total))
+        ctx.waitUntil(owners(env).then((list) => broadcast(env, list, () => newUserMessage(ping.mode, total, env.SITE_URL))))
+      }
       return json(null, 204, cors)
     }
 

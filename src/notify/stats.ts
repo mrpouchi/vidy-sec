@@ -15,6 +15,14 @@ export function parsePing(value: unknown): { id: string; mode: Mode } | null {
 /** Clé KV d'un signal : act:<jour>:<mode>:<id> (un seul par appareil, par jour et par mode). */
 export const pingKey = (day: string, mode: Mode, id: string) => `act:${day}:${mode}:${id}`
 
+/** Notif au propriétaire pour un nouvel appareil (Safari et l'app installée ont chacun leur identifiant). */
+export function newUserMessage(mode: Mode, total: number, url: string) {
+  const nth = total === 1 ? '1er' : `${total}e`
+  return mode === 'app'
+    ? { title: 'Nouvelle installation 🎉', body: `Quelqu’un a ajouté Spot Checker à son écran d’accueil · ${nth} appareil`, url }
+    : { title: 'Nouveau visiteur 👀', body: `Quelqu’un a ouvert Spot Checker dans le navigateur · ${nth} visiteur`, url }
+}
+
 export interface DayCount {
   day: string
   app: number

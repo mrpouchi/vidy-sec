@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parsePing, pingKey, summarize } from './stats.ts'
+import { newUserMessage, parsePing, pingKey, summarize } from './stats.ts'
 
 const A = '0f8fad5b-d9cb-469f-a165-70867728950e'
 const B = '7c9e6679-7425-40de-944b-e07fc1f90ae7'
@@ -25,5 +25,16 @@ describe('compteur anonyme', () => {
       ],
       unique: { app: 2, web: 1 },
     })
+  })
+})
+
+describe('notif nouvel utilisateur', () => {
+  it('distingue installation et visite, avec le rang', () => {
+    expect(newUserMessage('app', 1, 'u')).toEqual({
+      title: 'Nouvelle installation 🎉',
+      body: 'Quelqu’un a ajouté Spot Checker à son écran d’accueil · 1er appareil',
+      url: 'u',
+    })
+    expect(newUserMessage('web', 4, 'u').body).toBe('Quelqu’un a ouvert Spot Checker dans le navigateur · 4e visiteur')
   })
 })
