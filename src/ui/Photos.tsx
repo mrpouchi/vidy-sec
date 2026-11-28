@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { SPOTS } from '../model/spots.ts'
 import { CAPTION_MAX, PHOTO_TTL_DAYS, ago, timesLine, validTakenAt, type Photo } from '../notify/photos.ts'
+import { ZoomImg } from './ZoomImg.tsx'
 import { closeOnBackdrop, useModal, useSwipeDown } from './modal.ts'
 import { compress, fetchFeed, myToken, photoUrl, remove, report, upload } from './photos.ts'
 
@@ -75,8 +76,10 @@ export function Gallery(props: {
   const body = useRef<HTMLDivElement>(null)
   const [index, setIndex] = useState(0)
   const [confirm, setConfirm] = useState(false)
-  useSwipeDown(body, onClose, { fade: dialog, active: state !== null })
+  const [zoomed, setZoomed] = useState(false)
+  useSwipeDown(body, onClose, { fade: dialog, active: state !== null && !zoomed })
   useEffect(() => setConfirm(false), [index, state])
+  useEffect(() => setZoomed(false), [state])
   const [busy, setBusy] = useState(false)
 
   // Ouvre directement sur la photo touchée.
@@ -118,10 +121,10 @@ export function Gallery(props: {
               OK
             </button>
           </div>
-          <div ref={track} class="gallery" onScroll={onScroll}>
-            {photos.map((x) => (
+          <div ref={track} class={zoomed ? 'gallery zoomed' : 'gallery'} onScroll={onScroll}>
+            {photos.map((x, i) => (
               <div class="gallery-slide" onClick={(e) => e.target === e.currentTarget && onClose()}>
-                <img src={photoUrl(x.id)} alt={x.caption || `Photo ${spotName(x.spot)}`} />
+                <ZoomImg src={photoUrl(x.id)} alt={x.caption || `Photo ${spotName(x.spot)}`} active={i === index} onZoom={setZoomed} />
               </div>
             ))}
           </div>
