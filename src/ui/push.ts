@@ -116,3 +116,18 @@ export async function currentEndpoint(): Promise<string | null> {
     return null
   }
 }
+
+/** Rend cet appareil propriétaire (notifs nouveaux utilisateurs, spots proposés, photos) avec un code à usage unique. */
+export async function claimOwner(code: string): Promise<string> {
+  const endpoint = await currentEndpoint()
+  if (!endpoint) return 'Active d’abord les notifications sur cet appareil.'
+  const res = await fetch(`${PUSH_API}/claim`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, endpoint }),
+  }).catch(() => null)
+  if (!res) return 'Pas de réseau.'
+  if (res.ok) return 'C’est bon ✅'
+  if (res.status === 429) return 'Attends une minute et réessaie.'
+  return 'Code invalide ou expiré.'
+}

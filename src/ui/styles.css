@@ -1190,3 +1190,9 @@ button:focus-visible {
   color: var(--text-2);
   cursor: default;
 }
+
+.top .title {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}

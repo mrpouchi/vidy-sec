@@ -9,7 +9,7 @@ import { InstallHint } from './InstallHint.tsx'
 import { Compose, Gallery, usePhotos, type Draft, type GalleryState } from './Photos.tsx'
 import { takenAt } from './photos.ts'
 import { flushReports, migrateLocalLog, sendReport } from './reports.ts'
-import { isSubscribed, pushSupport, refreshSubscription, subscribe, syncSpots, unsubscribe } from './push.ts'
+import { claimOwner, isSubscribed, pushSupport, refreshSubscription, subscribe, syncSpots, unsubscribe } from './push.ts'
 import { SkeletonCard, SpotCard } from './SpotCard.tsx'
 import { SpotsSheet } from './SpotsSheet.tsx'
 import { carrySpotsToInstall, hasChosenSpots, readCache, readFeedback, readSpots, writeCache, writeFeedback, writeSpots, type Cached } from './storage.ts'
@@ -172,13 +172,26 @@ export function App() {
     setGallery({ photos: [photo], index: 0, del: q.get('del') ?? undefined })
   }, [photos.feed !== null])
 
+  // Appui long (1,5 s) sur le titre : code propriétaire, généré par l'admin.
+  const press = useRef<number>()
+  const startPress = () => {
+    window.clearTimeout(press.current)
+    press.current = window.setTimeout(() => {
+      const code = window.prompt('Code propriétaire')
+      if (code?.trim()) void claimOwner(code.trim()).then(showToast)
+    }, 1500)
+  }
+  const cancelPress = () => window.clearTimeout(press.current)
+
   const stale = data && Date.now() - data.at > STALE_AFTER
   const updated = data ? zurichStamp(new Date(data.at)).slice(11) : null
 
   return (
     <main class="app">
       <header class="top">
-        <h1>Spot Checker</h1>
+        <h1 class="title" onTouchStart={startPress} onTouchEnd={cancelPress} onTouchMove={cancelPress} onTouchCancel={cancelPress} onContextMenu={(e) => e.preventDefault()}>
+          Spot Checker
+        </h1>
         <div class="top-meta">
           {updated && <span>Mis à jour {updated}</span>}
           <button type="button" class="icon-btn" aria-label="Mes spots" onClick={() => setSheet(true)}>

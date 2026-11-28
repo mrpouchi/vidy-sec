@@ -306,6 +306,48 @@ export default {
       return json({ owners: keys.size }, 200, {})
     }
 
+    // Propriétaire : l'admin génère un code à usage unique (15 min) ; le propriétaire le tape dans l'app
+    // (appui long sur le titre) et cet appareil devient le seul à recevoir les notifs propriétaire.
+    if (url.pathname === '/claim-code' && req.method === 'POST') {
+      if (!isAdmin(req, env)) return json({ error: 'non autorisé' }, 401, {})
+      const n = crypto.getRandomValues(new Uint32Array(1))[0]! % 100_000_000
+      const code = String(n).padStart(8, '0')
+      await env.SUBS.put(`claim:${code}`, '1', { expirationTtl: 900 })
+      return json({ code }, 200, {})
+    }
+
+    if (url.pathname === '/claim' && req.method === 'POST') {
+      const ip = req.headers.get('CF-Connecting-IP') ?? 'inconnue'
+      if (await env.SUBS.get(`rlc:${ip}`)) return json({ error: 'attends un peu' }, 429, cors)
+      await env.SUBS.put(`rlc:${ip}`, '1', { expirationTtl: 60 })
+      const body = (await readJson(req)) as { code?: unknown; endpoint?: unknown } | null
+      const code = typeof body?.code === 'string' ? body.code.replace(/\D/g, '') : ''
+      if (typeof body?.endpoint !== 'string' || code.length !== 8 || !(await env.SUBS.get(`claim:${code}`))) {
+        return json({ error: 'code invalide' }, 403, cors)
+      }
+      const key = await subKey(body.endpoint)
+      const rec = parseRecord(await env.SUBS.get(key))
+      if (!rec) return json({ error: 'notifications pas activées' }, 404, cors)
+      await env.SUBS.delete(`claim:${code}`)
+      await env.SUBS.put('owners', JSON.stringify([key]))
+      ctx.waitUntil(
+        sendPush(rec.sub, JSON.stringify({ title: 'C’est bon ✅', body: 'Tu recevras ici les nouveaux utilisateurs, spots proposés et photos.', url: env.SITE_URL }), vapid(env)).catch(() => 0),
+      )
+      return json({ ok: true }, 200, cors)
+    }
+
+    // Diagnostic : envoie une notif de test à un abonnement précis et renvoie le code d'Apple/Google.
+    if (url.pathname === '/test' && req.method === 'POST') {
+      if (!isAdmin(req, env)) return json({ error: 'non autorisé' }, 401, {})
+      const body = (await readJson(req)) as { key?: unknown; title?: unknown; body?: unknown } | null
+      const key = typeof body?.key === 'string' ? body.key : ''
+      const rec = parseRecord(await env.SUBS.get(key))
+      if (!rec) return json({ error: 'abonnement inconnu' }, 404, {})
+      const payload = { title: String(body?.title ?? 'Test'), body: String(body?.body ?? ''), url: env.SITE_URL }
+      const status = await sendPush(rec.sub, JSON.stringify(payload), vapid(env)).catch(() => 0)
+      return json({ status }, 200, {})
+    }
+
     if (url.pathname === '/run' && req.method === 'POST') {
       if (!isAdmin(req, env)) return json({ error: 'non autorisé' }, 401, {})
       return json(await run(env, true), 200, {})
