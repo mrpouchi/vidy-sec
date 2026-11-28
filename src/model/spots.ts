@@ -37,6 +37,21 @@ export const SPOTS: readonly Spot[] = [
     about: 'Pumptrack · enrobé · 1260 m · de jour',
     at: 'au pumptrack de Leysin',
   },
+  // OpenStreetMap way 1467629458 (cycling=pump_track, surface=asphalt) ; une piste en terre voisine n'est pas suivie.
+  // Enrobé : même modèle que le bitume ; pas d'éclairage connu.
+  {
+    id: 'jouxtens',
+    kind: 'route',
+    name: 'Pumptrack de Jouxtens-Mézery',
+    short: 'Jouxtens',
+    lat: 46.5516,
+    lon: 6.5991,
+    open: 0,
+    close: 24,
+    lit: false,
+    about: 'Pumptrack · enrobé · de jour',
+    at: 'au pumptrack de Jouxtens',
+  },
 ]
 
 /** Heure où l'on peut rider ce spot : ouvert, et de jour ou éclairé (bowl : 8h–20h, éclairé). */
