@@ -6,6 +6,8 @@
  *  - /photos…           feed de photos des spots (voir worker/photos.ts)
  *  - POST   /reports    retour terrain anonyme « Sec / Mouillé » (recalibrage du modèle)
  *  - GET    /reports    liste des retours (ADMIN_TOKEN)
+ *  - POST   /ping       signal anonyme quotidien d'un appareil (compteur d'utilisateurs)
+ *  - GET    /stats      utilisateurs actifs par jour, uniques sur 7 et 30 jours (ADMIN_TOKEN)
  *  - GET    /requests   liste des demandes            ┐
  *  - POST   /run        envoi forcé (test)            ├ protégés par ADMIN_TOKEN
  *  - POST   /owner      marque un abonnement owner    ┘
@@ -18,6 +20,7 @@ import { VAPID_PUBLIC } from '../src/notify/keys.ts'
 import { bodyFor, planNotification, type NotifyState } from '../src/notify/plan.ts'
 import { followersOf } from '../src/notify/photos.ts'
 import { parseReport } from '../src/notify/reports.ts'
+import { parsePing, pingKey, summarize } from '../src/notify/stats.ts'
 import { parseSpotRequest, parseSpots, type SpotRequest } from '../src/notify/requests.ts'
 import { parseSubscription, sendPush, type PushSub, type Vapid } from '../src/notify/webpush.ts'
 import { handlePhotos } from './photos.ts'
@@ -236,6 +239,45 @@ export default {
         cursor = page.list_complete ? undefined : page.cursor
       } while (cursor)
       return json(items, 200, {})
+    }
+
+    if (url.pathname === '/ping' && req.method === 'POST') {
+      const ping = parsePing(await readJson(req))
+      if (!ping) return json({ error: 'signal invalide' }, 400, cors)
+      const key = pingKey(zurichStamp().slice(0, 10), ping.mode, ping.id)
+      // Une écriture par appareil et par jour au plus (l'app ne signale qu'une fois par jour).
+      if (!(await env.SUBS.get(key))) await env.SUBS.put(key, '1', { expirationTtl: 90 * 86_400 })
+      return json(null, 204, cors)
+    }
+
+    if (url.pathname === '/stats' && req.method === 'GET') {
+      if (!isAdmin(req, env)) return json({ error: 'non autorisé' }, 401, {})
+      const keys: string[] = []
+      let cursor: string | undefined
+      do {
+        const page = await env.SUBS.list({ prefix: 'act:', cursor })
+        keys.push(...page.keys.map((k) => k.name))
+        cursor = page.list_complete ? undefined : page.cursor
+      } while (cursor)
+      const today = zurichStamp().slice(0, 10)
+      const since = (n: number) => {
+        const d = new Date(`${today}T12:00:00Z`)
+        d.setUTCDate(d.getUTCDate() - n + 1)
+        return d.toISOString().slice(0, 10)
+      }
+      const within = (n: number) => keys.filter((k) => k.split(':')[1]! >= since(n))
+      const all = summarize(keys)
+      return json(
+        {
+          today: all.days.find((d) => d.day === today) ?? { day: today, app: 0, web: 0 },
+          last7: summarize(within(7)).unique,
+          last30: summarize(within(30)).unique,
+          notifications: (await allRecords(env)).length,
+          days: all.days.slice(0, 30),
+        },
+        200,
+        {},
+      )
     }
 
     if (url.pathname === '/requests' && req.method === 'GET') {

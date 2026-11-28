@@ -59,3 +59,10 @@ sont publiques, stockées en KV et supprimées automatiquement après 7 jours.
 
 Modération : le propriétaire (clé KV `owners`) reçoit chaque photo en notification avec un lien de
 suppression ; une photo signalée 2 fois est masquée. Voir [`worker/photos.ts`](worker/photos.ts).
+
+## Compteur d'utilisateurs
+
+Anonyme : chaque appareil tire un identifiant au hasard et se signale une fois par jour au Worker
+(`POST /ping`, mode `app` si installée sur l'écran d'accueil, sinon `web`). Aucune donnée
+personnelle ; les signaux expirent après 90 jours. Chiffres : `GET /stats` avec `ADMIN_TOKEN`.
+Sur iPhone, Safari et l'app installée comptent comme deux appareils (mémoires séparées).
